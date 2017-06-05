@@ -15,6 +15,8 @@
  */
 package com.google.android.exoplayer2.upstream;
 
+import android.util.Log;
+
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Util;
 import java.util.Arrays;
@@ -35,6 +37,8 @@ public final class DefaultAllocator implements Allocator {
   private int allocatedCount;
   private int availableCount;
   private Allocation[] availableAllocations;
+  private int allocationId;
+  private static String TAG = "DefaultAllocator";
 
   /**
    * Constructs an instance without creating any {@link Allocation}s up front.
@@ -61,6 +65,7 @@ public final class DefaultAllocator implements Allocator {
       int initialAllocationCount) {
     Assertions.checkArgument(individualAllocationSize > 0);
     Assertions.checkArgument(initialAllocationCount >= 0);
+    this.allocationId = 0;
     this.trimOnReset = trimOnReset;
     this.individualAllocationSize = individualAllocationSize;
     this.availableCount = initialAllocationCount;
@@ -69,12 +74,13 @@ public final class DefaultAllocator implements Allocator {
       initialAllocationBlock = new byte[initialAllocationCount * individualAllocationSize];
       for (int i = 0; i < initialAllocationCount; i++) {
         int allocationOffset = i * individualAllocationSize;
-        availableAllocations[i] = new Allocation(initialAllocationBlock, allocationOffset);
+        availableAllocations[i] = new Allocation(initialAllocationBlock, allocationOffset, this.allocationId++);
       }
     } else {
       initialAllocationBlock = null;
     }
     singleAllocationReleaseHolder = new Allocation[1];
+
   }
 
   public synchronized void reset() {
@@ -98,8 +104,10 @@ public final class DefaultAllocator implements Allocator {
     if (availableCount > 0) {
       allocation = availableAllocations[--availableCount];
       availableAllocations[availableCount] = null;
+      Log.d(TAG, "Reuse previous allocation #"+ allocation.id);
     } else {
-      allocation = new Allocation(new byte[individualAllocationSize], 0);
+      allocation = new Allocation(new byte[individualAllocationSize], 0, allocationId++);
+      Log.d(TAG, "Create new allocation #"+ allocation.id);
     }
     return allocation;
   }
@@ -121,6 +129,7 @@ public final class DefaultAllocator implements Allocator {
       Assertions.checkArgument(allocation.data == initialAllocationBlock
           || allocation.data.length == individualAllocationSize);
       availableAllocations[availableCount++] = allocation;
+      Log.d(TAG, "Save used allocation as free space #"+ allocation.id);
     }
     allocatedCount -= allocations.length;
     // Wake up threads waiting for the allocated size to drop.

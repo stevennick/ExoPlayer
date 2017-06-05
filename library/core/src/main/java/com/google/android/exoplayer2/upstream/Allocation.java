@@ -15,6 +15,8 @@
  */
 package com.google.android.exoplayer2.upstream;
 
+import android.util.Log;
+
 /**
  * An allocation within a byte array.
  * <p>
@@ -31,6 +33,10 @@ public final class Allocation {
 
   private final int offset;
 
+  public final int id;
+
+  private static String TAG = "Allocation";
+
   /**
    * @param data The array containing the allocated space.
    * @param offset The offset of the allocated space within the array.
@@ -38,6 +44,20 @@ public final class Allocation {
   public Allocation(byte[] data, int offset) {
     this.data = data;
     this.offset = offset;
+    this.id = this.hashCode();
+    Log.i(TAG, "New id #hash :"+ this.id);
+  }
+
+  /**
+   * @param data The array containing the allocated space.
+   * @param offset The offset of the allocated space within the array.
+   * @param id The given ID for this allocation.
+   */
+  public Allocation(byte[] data, int offset, int id) {
+    this.data = data;
+    this.offset = offset;
+    this.id = id;
+    Log.d(TAG, "New id #id :" + this.id);
   }
 
   /**

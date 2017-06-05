@@ -15,6 +15,8 @@
  */
 package com.google.android.exoplayer2.extractor;
 
+import android.os.Trace;
+
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.FormatHolder;
@@ -23,10 +25,12 @@ import com.google.android.exoplayer2.upstream.Allocation;
 import com.google.android.exoplayer2.upstream.Allocator;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.ParsableByteArray;
+import com.google.android.exoplayer2.util.TraceUtil;
 import com.google.android.exoplayer2.util.Util;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -290,7 +294,9 @@ public final class DefaultTrackOutput implements TrackOutput {
           }
           // Write the sample data into the holder.
           buffer.ensureSpaceForWrite(extrasHolder.size);
+//          TraceUtil.beginSection("DefaultTrackOutput.readData(Move Allocation to DecodeInputBuffer):" + buffer.data.hashCode());
           readData(extrasHolder.offset, buffer.data, extrasHolder.size);
+//          TraceUtil.endSection();
           // Advance the read head.
           dropDownstreamTo(extrasHolder.nextOffset);
         }
@@ -409,8 +415,10 @@ public final class DefaultTrackOutput implements TrackOutput {
       int positionInAllocation = (int) (absolutePosition - totalBytesDropped);
       int toCopy = Math.min(length - bytesRead, allocationLength - positionInAllocation);
       Allocation allocation = dataQueue.peek();
+      TraceUtil.beginSection("DefaultTrackOutput.readData(dataQueue deque): " + String.valueOf(Arrays.hashCode(allocation.data)));
       System.arraycopy(allocation.data, allocation.translateOffset(positionInAllocation), target,
           bytesRead, toCopy);
+      TraceUtil.endSection();
       absolutePosition += toCopy;
       bytesRead += toCopy;
     }
@@ -481,8 +489,10 @@ public final class DefaultTrackOutput implements TrackOutput {
     }
     try {
       length = prepareForAppend(length);
+      TraceUtil.beginSection("DefaultTrackOutput.sampleData(Fetch data from upstream): " + String.valueOf(Arrays.hashCode(lastAllocation.data)));
       int bytesAppended = input.read(lastAllocation.data,
           lastAllocation.translateOffset(lastAllocationOffset), length);
+      TraceUtil.endSection();
       if (bytesAppended == C.RESULT_END_OF_INPUT) {
         if (allowEndOfInput) {
           return C.RESULT_END_OF_INPUT;
@@ -570,7 +580,9 @@ public final class DefaultTrackOutput implements TrackOutput {
     if (lastAllocationOffset == allocationLength) {
       lastAllocationOffset = 0;
       lastAllocation = allocator.allocate();
+      TraceUtil.beginSection("DefaultTrackOutput.prepareForAppend(dataQueue enque): " + String.valueOf(Arrays.hashCode(lastAllocation.data)));
       dataQueue.add(lastAllocation);
+      TraceUtil.endSection();
     }
     return Math.min(length, allocationLength - lastAllocationOffset);
   }
