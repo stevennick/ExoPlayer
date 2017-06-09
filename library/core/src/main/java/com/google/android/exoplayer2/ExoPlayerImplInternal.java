@@ -564,7 +564,7 @@ import java.io.IOException;
       return;
     }
 
-    TraceUtil.beginSection("doSomeWork");
+    TraceUtil.beginSection("ExoPlayerImplInternal.doSomeWork");
 
     updatePlaybackPositions();
     playingPeriodHolder.mediaPeriod.discardBuffer(playbackInfo.positionUs);

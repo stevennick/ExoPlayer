@@ -15,7 +15,9 @@
  */
 package com.google.android.exoplayer2.extractor;
 
+import android.app.Application;
 import android.os.Trace;
+import android.util.Log;
 
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
@@ -31,6 +33,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -82,6 +86,7 @@ public final class DefaultTrackOutput implements TrackOutput {
   private int lastAllocationOffset;
   private boolean pendingSplice;
   private UpstreamFormatChangedListener upstreamFormatChangeListener;
+  private final String TAG = "DefaultTrackOutput";
 
   /**
    * @param allocator An {@link Allocator} from which allocations for sample data can be obtained.
@@ -294,9 +299,7 @@ public final class DefaultTrackOutput implements TrackOutput {
           }
           // Write the sample data into the holder.
           buffer.ensureSpaceForWrite(extrasHolder.size);
-//          TraceUtil.beginSection("DefaultTrackOutput.readData(Move Allocation to DecodeInputBuffer):" + buffer.data.hashCode());
           readData(extrasHolder.offset, buffer.data, extrasHolder.size);
-//          TraceUtil.endSection();
           // Advance the read head.
           dropDownstreamTo(extrasHolder.nextOffset);
         }
@@ -390,15 +393,24 @@ public final class DefaultTrackOutput implements TrackOutput {
    */
   private void readData(long absolutePosition, ByteBuffer target, int length) {
     int remaining = length;
+    String logMessage = "";
+    logMessage = "readData(allocation -> DecodeInputBuffer.ByteBuffer)[absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
+    Log.d(TAG, logMessage);
+    TraceUtil.beginSection(logMessage);
     while (remaining > 0) {
       dropDownstreamTo(absolutePosition);
       int positionInAllocation = (int) (absolutePosition - totalBytesDropped);
       int toCopy = Math.min(remaining, allocationLength - positionInAllocation);
       Allocation allocation = dataQueue.peek();
+      logMessage = "readData(from allocation #" +allocation.id + ")[absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
+      Log.d(TAG, logMessage);
       target.put(allocation.data, allocation.translateOffset(positionInAllocation), toCopy);
       absolutePosition += toCopy;
       remaining -= toCopy;
     }
+    logMessage = "readData(allocation -> DecodeInputBuffer.ByteBuffer)[FIN, absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
+    Log.d(TAG, logMessage);
+    TraceUtil.endSection();
   }
 
   /**
@@ -415,10 +427,8 @@ public final class DefaultTrackOutput implements TrackOutput {
       int positionInAllocation = (int) (absolutePosition - totalBytesDropped);
       int toCopy = Math.min(length - bytesRead, allocationLength - positionInAllocation);
       Allocation allocation = dataQueue.peek();
-      TraceUtil.beginSection("DefaultTrackOutput.readData(dataQueue deque): " + String.valueOf(Arrays.hashCode(allocation.data)));
       System.arraycopy(allocation.data, allocation.translateOffset(positionInAllocation), target,
           bytesRead, toCopy);
-      TraceUtil.endSection();
       absolutePosition += toCopy;
       bytesRead += toCopy;
     }
@@ -431,12 +441,18 @@ public final class DefaultTrackOutput implements TrackOutput {
    * @param absolutePosition The absolute position up to which allocations can be discarded.
    */
   private void dropDownstreamTo(long absolutePosition) {
+    String logMessage = "DefaultTrackOutput.dropDownstreamTo(" + absolutePosition + ")";
+    Log.d(TAG, logMessage);
+    TraceUtil.beginSection(logMessage);
     int relativePosition = (int) (absolutePosition - totalBytesDropped);
     int allocationIndex = relativePosition / allocationLength;
     for (int i = 0; i < allocationIndex; i++) {
-      allocator.release(dataQueue.remove());
+      Allocation remove = dataQueue.remove();
+      Log.d(TAG, "Remove allocation #"+ remove.id + " from dataQueue[relativePosition=" + relativePosition + ", allocationIndex=" + allocationIndex +"]");
+      allocator.release(remove);
       totalBytesDropped += allocationLength;
     }
+    TraceUtil.endSection();
   }
 
   // Called by the loading thread.
@@ -489,10 +505,14 @@ public final class DefaultTrackOutput implements TrackOutput {
     }
     try {
       length = prepareForAppend(length);
-      TraceUtil.beginSection("DefaultTrackOutput.sampleData(Fetch data from upstream): " + String.valueOf(Arrays.hashCode(lastAllocation.data)));
+//      String logMessage = "sampleData<ExtractorInput>(Fetch data from upstream to #" + lastAllocation.id + ")";
+//      Log.d(TAG, logMessage);
+//      TraceUtil.beginSection(logMessage);
       int bytesAppended = input.read(lastAllocation.data,
           lastAllocation.translateOffset(lastAllocationOffset), length);
-      TraceUtil.endSection();
+//      TraceUtil.endSection();
+//      String logMessage = "sampleData<ExtractorInput>(New data ID for allocation #" + lastAllocation.id + "): " + String.valueOf(Arrays.hashCode(lastAllocation.data));
+//      Log.d(TAG, logMessage);
       if (bytesAppended == C.RESULT_END_OF_INPUT) {
         if (allowEndOfInput) {
           return C.RESULT_END_OF_INPUT;
@@ -513,6 +533,9 @@ public final class DefaultTrackOutput implements TrackOutput {
       buffer.skipBytes(length);
       return;
     }
+    String logMessage = "sampleData<ParsableByteArray>(upstream -> allocation)[len=" + length + "]";
+//    Log.d(TAG, logMessage);
+    TraceUtil.beginSection(logMessage);
     while (length > 0) {
       int thisAppendLength = prepareForAppend(length);
       buffer.readBytes(lastAllocation.data, lastAllocation.translateOffset(lastAllocationOffset),
@@ -521,6 +544,9 @@ public final class DefaultTrackOutput implements TrackOutput {
       totalBytesWritten += thisAppendLength;
       length -= thisAppendLength;
     }
+    TraceUtil.endSection();
+    logMessage = "sampleData<ParsableByteArray>(upstream -> allocation)[FIN, lastId=#" + lastAllocation.id + "]";
+//    Log.d(TAG, logMessage);
     endWriteOperation();
   }
 
@@ -580,9 +606,11 @@ public final class DefaultTrackOutput implements TrackOutput {
     if (lastAllocationOffset == allocationLength) {
       lastAllocationOffset = 0;
       lastAllocation = allocator.allocate();
-      TraceUtil.beginSection("DefaultTrackOutput.prepareForAppend(dataQueue enque): " + String.valueOf(Arrays.hashCode(lastAllocation.data)));
+      String logMessage = "prepareForAppend(dataQueue enque for #" + lastAllocation.id + "): " + String.valueOf(Arrays.hashCode(lastAllocation.data));
+//      Log.d(TAG, logMessage);
+//      TraceUtil.beginSection(logMessage);
       dataQueue.add(lastAllocation);
-      TraceUtil.endSection();
+//      TraceUtil.endSection();
     }
     return Math.min(length, allocationLength - lastAllocationOffset);
   }
@@ -632,6 +660,7 @@ public final class DefaultTrackOutput implements TrackOutput {
     private boolean upstreamFormatRequired;
     private Format upstreamFormat;
     private int upstreamSourceId;
+    private final String TAG = "TrackOutput.InfoQueue";
 
     public InfoQueue() {
       capacity = SAMPLE_CAPACITY_INCREMENT;
@@ -805,7 +834,8 @@ public final class DefaultTrackOutput implements TrackOutput {
       extrasHolder.size = sizes[relativeReadIndex];
       extrasHolder.offset = offsets[relativeReadIndex];
       extrasHolder.encryptionKeyId = encryptionKeys[relativeReadIndex];
-
+      String logMessage = "BufferExtractsHolder[size=" +extrasHolder.size+ ", offset="+extrasHolder.offset+"], relaIndex= " +relativeReadIndex+ ", timeUs=" + buffer.timeUs +", largeDeqTimestampUs=" + largestDequeuedTimestampUs;
+      Log.d(TAG, logMessage);
       largestDequeuedTimestampUs = Math.max(largestDequeuedTimestampUs, buffer.timeUs);
       queueSize--;
       relativeReadIndex++;
@@ -922,6 +952,7 @@ public final class DefaultTrackOutput implements TrackOutput {
       sourceIds[relativeWriteIndex] = upstreamSourceId;
       // Increment the write index.
       queueSize++;
+      Log.d(TAG, "commitSample[timeUs="+timeUs+", relativeWriteIndex="+relativeWriteIndex+ ", sampleFlags="+sampleFlags+", offset="+offset+", size="+size+", queueSize="+ queueSize + "]");
       if (queueSize == capacity) {
         // Increase the capacity.
         int newCapacity = capacity + SAMPLE_CAPACITY_INCREMENT;

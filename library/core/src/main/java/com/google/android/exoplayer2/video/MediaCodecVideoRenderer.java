@@ -649,6 +649,8 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   protected void renderOutputBufferV21(MediaCodec codec, int index, long presentationTimeUs,
       long releaseTimeNs) {
     maybeNotifyVideoSizeChanged();
+    String logMessage = "release video output buffer with bufferIndex @" + bufferIndex;
+    Log.d(TAG, logMessage);
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, releaseTimeNs);
     TraceUtil.endSection();
