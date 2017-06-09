@@ -114,6 +114,8 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
 
   private static final String TAG = "MediaCodecRenderer";
 
+  private long loopCount;
+
   /**
    * If the {@link MediaCodec} is hotswapped (i.e. replaced during playback), this is the period of
    * time during which {@link #isReady()} will report true regardless of whether the new codec has
@@ -234,6 +236,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     outputBufferInfo = new MediaCodec.BufferInfo();
     codecReconfigurationState = RECONFIGURATION_STATE_NONE;
     codecReinitializationState = REINITIALIZATION_STATE_NONE;
+    loopCount = 0;
   }
 
   @Override
@@ -349,13 +352,13 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     codecNeedsMonoChannelCountWorkaround = codecNeedsMonoChannelCountWorkaround(codecName, format);
     try {
       long codecInitializingTimestamp = SystemClock.elapsedRealtime();
-      TraceUtil.beginSection("createCodec:" + codecName);
+      TraceUtil.beginSection("MediaCodecRenderer.createCodec:" + codecName);
       codec = MediaCodec.createByCodecName(codecName);
       TraceUtil.endSection();
-      TraceUtil.beginSection("configureCodec");
+      TraceUtil.beginSection("MediaCodecRenderer.configureCodec");
       configureCodec(decoderInfo, codec, format, mediaCrypto);
       TraceUtil.endSection();
-      TraceUtil.beginSection("startCodec");
+      TraceUtil.beginSection("MediaCodecRenderer.startCodec");
       codec.start();
       TraceUtil.endSection();
       long codecInitializedTimestamp = SystemClock.elapsedRealtime();
@@ -506,10 +509,11 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     // We have a format.
     maybeInitCodec();
     if (codec != null) {
-      TraceUtil.beginSection("drainAndFeed");
+      TraceUtil.beginSection("drainAndFeed - loop " + loopCount + ", rendered:" + decoderCounters.renderedOutputBufferCount + ", skip:"+ decoderCounters.skippedOutputBufferCount + ", drop:" + decoderCounters.droppedOutputBufferCount);
       while (drainOutputBuffer(positionUs, elapsedRealtimeUs)) {}
       while (feedInputBuffer()) {}
       TraceUtil.endSection();
+      loopCount++;
     } else {
       skipSource(positionUs);
       // We need to read any format changes despite not having a codec so that drmSession can be
@@ -564,15 +568,20 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    * @throws ExoPlaybackException If an error occurs feeding the input buffer.
    */
   private boolean feedInputBuffer() throws ExoPlaybackException {
+    String logMessage = "readSource from allocation to decodeInputBuffer.";
+//    Log.d(TAG, logMessage);
+    TraceUtil.beginSection(logMessage);
     if (codec == null || codecReinitializationState == REINITIALIZATION_STATE_WAIT_END_OF_STREAM
         || inputStreamEnded) {
       // We need to reinitialize the codec or the input stream has ended.
+      TraceUtil.endSection();
       return false;
     }
 
     if (inputIndex < 0) {
       inputIndex = codec.dequeueInputBuffer(0);
       if (inputIndex < 0) {
+        TraceUtil.endSection();
         return false;
       }
       buffer.data = inputBuffers[inputIndex];
@@ -590,6 +599,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         inputIndex = C.INDEX_UNSET;
       }
       codecReinitializationState = REINITIALIZATION_STATE_WAIT_END_OF_STREAM;
+      TraceUtil.endSection();
       return false;
     }
 
@@ -599,6 +609,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       codec.queueInputBuffer(inputIndex, 0, ADAPTATION_WORKAROUND_BUFFER.length, 0, 0);
       inputIndex = C.INDEX_UNSET;
       codecReceivedBuffers = true;
+      TraceUtil.endSection();
       return true;
     }
 
@@ -622,6 +633,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     }
 
     if (result == C.RESULT_NOTHING_READ) {
+      TraceUtil.endSection();
       return false;
     }
     if (result == C.RESULT_FORMAT_READ) {
@@ -632,6 +644,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         codecReconfigurationState = RECONFIGURATION_STATE_WRITE_PENDING;
       }
       onInputFormatChanged(formatHolder.format);
+      TraceUtil.endSection();
       return true;
     }
 
@@ -647,6 +660,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       inputStreamEnded = true;
       if (!codecReceivedBuffers) {
         processEndOfStream();
+        TraceUtil.endSection();
         return false;
       }
       try {
@@ -658,8 +672,10 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
           inputIndex = C.INDEX_UNSET;
         }
       } catch (CryptoException e) {
+        TraceUtil.endSection();
         throw ExoPlaybackException.createForRenderer(e, getIndex());
       }
+      TraceUtil.endSection();
       return false;
     }
     if (waitingForFirstSyncFrame && !buffer.isKeyFrame()) {
@@ -669,17 +685,20 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         // data into a subsequent buffer (if there is one).
         codecReconfigurationState = RECONFIGURATION_STATE_WRITE_PENDING;
       }
+      TraceUtil.endSection();
       return true;
     }
     waitingForFirstSyncFrame = false;
     boolean bufferEncrypted = buffer.isEncrypted();
     waitingForKeys = shouldWaitForKeys(bufferEncrypted);
     if (waitingForKeys) {
+      TraceUtil.endSection();
       return false;
     }
     if (codecNeedsDiscardToSpsWorkaround && !bufferEncrypted) {
       NalUnitUtil.discardToSps(buffer.data);
       if (buffer.data.position() == 0) {
+        TraceUtil.endSection();
         return true;
       }
       codecNeedsDiscardToSpsWorkaround = false;
@@ -689,8 +708,10 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       if (buffer.isDecodeOnly()) {
         decodeOnlyPresentationTimestamps.add(presentationTimeUs);
       }
-
+//      Log.d(TAG, "Queue input bufferIndex @" + inputIndex + " with ByteBuffer: " + buffer.data.hashCode());
       buffer.flip();
+//      Log.d(TAG, "New ByteBuffer bufferIndex @" + inputIndex + " hash: " + buffer.data.hashCode());
+      Log.d(TAG, "ByteBuffer bufferIndex @" + inputIndex + " queued.");
       onQueueInputBuffer(buffer);
 
       if (bufferEncrypted) {
@@ -705,8 +726,10 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       codecReconfigurationState = RECONFIGURATION_STATE_NONE;
       decoderCounters.inputBufferCount++;
     } catch (CryptoException e) {
+      TraceUtil.endSection();
       throw ExoPlaybackException.createForRenderer(e, getIndex());
     }
+    TraceUtil.endSection();
     return true;
   }
 
@@ -714,6 +737,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       int adaptiveReconfigurationBytes) {
     MediaCodec.CryptoInfo cryptoInfo = buffer.cryptoInfo.getFrameworkCryptoInfoV16();
     if (adaptiveReconfigurationBytes == 0) {
+
       return cryptoInfo;
     }
     // There must be at least one sub-sample, although numBytesOfClearData is permitted to be

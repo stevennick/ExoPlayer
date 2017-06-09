@@ -17,6 +17,7 @@ package com.google.android.exoplayer2.source;
 
 import android.net.Uri;
 import android.os.Handler;
+import android.util.Log;
 import android.util.SparseArray;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
@@ -40,6 +41,7 @@ import com.google.android.exoplayer2.upstream.Loader.Loadable;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.ConditionVariable;
 import com.google.android.exoplayer2.util.MimeTypes;
+import com.google.android.exoplayer2.util.TraceUtil;
 import com.google.android.exoplayer2.util.Util;
 import java.io.EOFException;
 import java.io.IOException;
@@ -93,6 +95,7 @@ import java.io.IOException;
   private int extractedSamplesCountAtStartOfLoad;
   private boolean loadingFinished;
   private boolean released;
+  private final String TAG = "ExtractorMediaPeriod";
 
   /**
    * @param uri The {@link Uri} of the media stream.
@@ -633,6 +636,7 @@ import java.io.IOException;
     @Override
     public void load() throws IOException, InterruptedException {
       int result = Extractor.RESULT_CONTINUE;
+      String logMessage ;
       while (result == Extractor.RESULT_CONTINUE && !loadCanceled) {
         ExtractorInput input = null;
         try {
@@ -641,12 +645,21 @@ import java.io.IOException;
           if (length != C.LENGTH_UNSET) {
             length += position;
           }
+          logMessage= "new DefaultExtractorInput & SelectExtractor[initPos=" + position +", length=" + length + "](-1 mean UNKNOWN_LENGTH)";
+          Log.d(TAG, logMessage);
+          TraceUtil.beginSection(logMessage);
           input = new DefaultExtractorInput(dataSource, position, length);
           Extractor extractor = extractorHolder.selectExtractor(input, dataSource.getUri());
+          TraceUtil.endSection();
           if (pendingExtractorSeek) {
+            logMessage= "ExtractorSeek[initPos=" + position +", seekTimeUs=" + seekTimeUs + "]";
+            Log.d(TAG, logMessage);
             extractor.seek(position, seekTimeUs);
             pendingExtractorSeek = false;
           }
+          logMessage= "extractor.read[inputPos=" + input.getPosition() +", initPos=" + position + "]";
+          Log.d(TAG, logMessage);
+          TraceUtil.beginSection(logMessage);
           while (result == Extractor.RESULT_CONTINUE && !loadCanceled) {
             loadCondition.block();
             result = extractor.read(input, positionHolder);
@@ -656,6 +669,9 @@ import java.io.IOException;
               handler.post(onContinueLoadingRequestedRunnable);
             }
           }
+          TraceUtil.endSection();
+          logMessage= "extractor.read[inputPos=" + input.getPosition() +", initPos=" + position + "]";
+          Log.d(TAG, logMessage);
         } finally {
           if (result == Extractor.RESULT_SEEK) {
             result = Extractor.RESULT_CONTINUE;

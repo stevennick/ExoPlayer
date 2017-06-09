@@ -496,14 +496,14 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   }
 
   private void skipOutputBuffer(MediaCodec codec, int bufferIndex) {
-    TraceUtil.beginSection("skipVideoBuffer");
+    TraceUtil.beginSection("MediaCodecVideoRenderer.skipVideoBuffer");
     codec.releaseOutputBuffer(bufferIndex, false);
     TraceUtil.endSection();
     decoderCounters.skippedOutputBufferCount++;
   }
 
   private void dropOutputBuffer(MediaCodec codec, int bufferIndex) {
-    TraceUtil.beginSection("dropVideoBuffer");
+    TraceUtil.beginSection("MediaCodecVideoRenderer.dropVideoBuffer");
     codec.releaseOutputBuffer(bufferIndex, false);
     TraceUtil.endSection();
     decoderCounters.droppedOutputBufferCount++;
@@ -518,7 +518,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
 
   private void renderOutputBuffer(MediaCodec codec, int bufferIndex) {
     maybeNotifyVideoSizeChanged();
-    TraceUtil.beginSection("releaseOutputBuffer");
+    TraceUtil.beginSection("MediaCodecVideoRenderer.releaseOutputBuffer");
     codec.releaseOutputBuffer(bufferIndex, true);
     TraceUtil.endSection();
     decoderCounters.renderedOutputBufferCount++;
@@ -529,7 +529,9 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   @TargetApi(21)
   private void renderOutputBufferV21(MediaCodec codec, int bufferIndex, long releaseTimeNs) {
     maybeNotifyVideoSizeChanged();
-    TraceUtil.beginSection("releaseOutputBuffer");
+    String logMessage = "release video output buffer with bufferIndex @" + bufferIndex;
+    Log.d(TAG, logMessage);
+    TraceUtil.beginSection(logMessage);
     codec.releaseOutputBuffer(bufferIndex, releaseTimeNs);
     TraceUtil.endSection();
     decoderCounters.renderedOutputBufferCount++;

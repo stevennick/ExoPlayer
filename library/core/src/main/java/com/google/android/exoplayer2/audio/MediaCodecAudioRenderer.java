@@ -21,6 +21,8 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.media.audiofx.Virtualizer;
 import android.os.Handler;
+import android.util.Log;
+
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.Format;
@@ -361,6 +363,8 @@ public class MediaCodecAudioRenderer extends MediaCodecRenderer implements Media
       boolean shouldSkip) throws ExoPlaybackException {
     if (passthroughEnabled && (bufferFlags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
       // Discard output buffers from the passthrough (raw) decoder containing codec specific data.
+      String logMessage = "Release audio output buffer with bufferIndex @" + bufferIndex;
+      Log.d("MediaCodecAudioRenderer", logMessage);
       codec.releaseOutputBuffer(bufferIndex, false);
       return true;
     }

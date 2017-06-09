@@ -45,7 +45,7 @@ public final class Allocation {
     this.data = data;
     this.offset = offset;
     this.id = this.hashCode();
-    Log.i(TAG, "New id #hash :"+ this.id);
+//    Log.i(TAG, "New id #hash :"+ this.id);
   }
 
   /**
@@ -57,7 +57,7 @@ public final class Allocation {
     this.data = data;
     this.offset = offset;
     this.id = id;
-    Log.d(TAG, "New id #id :" + this.id);
+//    Log.d(TAG, "New id #id :" + this.id);
   }
 
   /**

@@ -211,7 +211,7 @@ public abstract class SimpleDecoderAudioRenderer extends BaseRenderer implements
     if (decoder != null) {
       try {
         // Rendering loop.
-        TraceUtil.beginSection("drainAndFeed");
+        TraceUtil.beginSection("SimpleDecoderAudioRenderer.drainAndFeed");
         while (drainOutputBuffer()) {}
         while (feedInputBuffer()) {}
         TraceUtil.endSection();
@@ -528,7 +528,7 @@ public abstract class SimpleDecoderAudioRenderer extends BaseRenderer implements
 
     try {
       long codecInitializingTimestamp = SystemClock.elapsedRealtime();
-      TraceUtil.beginSection("createAudioDecoder");
+      TraceUtil.beginSection("SimpleDecoderAudioRenderer.createAudioDecoder");
       decoder = createDecoder(inputFormat, mediaCrypto);
       TraceUtil.endSection();
       long codecInitializedTimestamp = SystemClock.elapsedRealtime();
