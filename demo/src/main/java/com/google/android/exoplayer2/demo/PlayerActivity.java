@@ -362,15 +362,15 @@ public class PlayerActivity extends Activity implements OnClickListener, EventLi
         : Util.inferContentType("." + overrideExtension);
     switch (type) {
       case C.TYPE_SS:
-        return new SsMediaSource(uri, buildDataSourceFactory(false),
+        return new SsMediaSource(uri, buildDataSourceFactory(uri, false),
             new DefaultSsChunkSource.Factory(mediaDataSourceFactory), mainHandler, eventLogger);
       case C.TYPE_DASH:
-        return new DashMediaSource(uri, buildDataSourceFactory(false),
+        return new DashMediaSource(uri, buildDataSourceFactory(uri, false),
             new DefaultDashChunkSource.Factory(mediaDataSourceFactory), mainHandler, eventLogger);
       case C.TYPE_HLS:
         return new HlsMediaSource(uri, mediaDataSourceFactory, mainHandler, eventLogger);
       case C.TYPE_OTHER:
-        return new ExtractorMediaSource(uri, mediaDataSourceFactory, new DefaultExtractorsFactory(),
+        return new ExtractorMediaSource(uri, buildDataSourceFactory(uri, false), new DefaultExtractorsFactory(),
             mainHandler, eventLogger);
       default: {
         throw new IllegalStateException("Unsupported type: " + type);
@@ -425,7 +425,20 @@ public class PlayerActivity extends Activity implements OnClickListener, EventLi
    */
   private DataSource.Factory buildDataSourceFactory(boolean useBandwidthMeter) {
     return ((DemoApplication) getApplication())
-        .buildDataSourceFactory(useBandwidthMeter ? BANDWIDTH_METER : null);
+            .buildDataSourceFactory(useBandwidthMeter ? BANDWIDTH_METER : null);
+  }
+
+  /**
+   * Returns a new DataSource factory.
+   *
+   * @param uri
+   * @param useBandwidthMeter Whether to set {@link #BANDWIDTH_METER} as a listener to the new
+   *     DataSource factory.
+   * @return A new DataSource factory.
+   */
+  private DataSource.Factory buildDataSourceFactory(Uri uri, boolean useBandwidthMeter) {
+    return ((DemoApplication) getApplication())
+        .buildDataSourceFactory(uri, useBandwidthMeter ? BANDWIDTH_METER : null);
   }
 
   /**

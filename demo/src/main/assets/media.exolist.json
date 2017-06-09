@@ -1,5 +1,14 @@
 [
   {
+    "name": "UDP Live Test",
+    "samples" : [
+      {
+        "name": "localhost MP4,H264 (0.0.0.0:10230)",
+        "uri": "udp://0.0.0.0:10230"
+      }
+    ]
+  },
+  {
     "name": "YouTube DASH",
     "samples": [
       {
