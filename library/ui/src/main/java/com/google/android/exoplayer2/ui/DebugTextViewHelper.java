@@ -178,10 +178,10 @@ public final class DebugTextViewHelper implements Runnable, ExoPlayer.EventListe
       return "";
     }
     counters.ensureUpdated();
-    return " rb:" + counters.renderedOutputBufferCount
-        + " sb:" + counters.skippedOutputBufferCount
-        + " db:" + counters.droppedOutputBufferCount
-        + " mcdb:" + counters.maxConsecutiveDroppedOutputBufferCount;
+    return " rendbuf:" + counters.renderedOutputBufferCount
+        + " skipbuf:" + counters.skippedOutputBufferCount
+        + " dopbuf:" + counters.droppedOutputBufferCount
+        + " maxcondropbuf:" + counters.maxConsecutiveDroppedOutputBufferCount;
   }
 
 }
