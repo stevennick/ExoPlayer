@@ -204,6 +204,22 @@ public final class DefaultTrackOutput implements TrackOutput {
   }
 
   /**
+   * Returns the current queue size.
+   */
+  public int getQueueSize() {
+    return infoQueue.getQueueSize();
+  }
+
+  /**
+   * Returns current queued time frame in us.
+   * @param index
+   * @return
+   */
+  public long getQueuedFrameTimeUs(int index) {
+    return infoQueue.getQueuedFrameTimeUs(index);
+  }
+
+  /**
    * Peeks the source id of the next sample, or the current upstream source id if the buffer is
    * empty.
    *
@@ -299,7 +315,7 @@ public final class DefaultTrackOutput implements TrackOutput {
           }
           // Write the sample data into the holder.
           buffer.ensureSpaceForWrite(extrasHolder.size);
-          readData(extrasHolder.offset, buffer.data, extrasHolder.size);
+          readData(extrasHolder.offset, buffer.data, extrasHolder.size, buffer.format);
           // Advance the read head.
           dropDownstreamTo(extrasHolder.nextOffset);
         }
@@ -391,26 +407,44 @@ public final class DefaultTrackOutput implements TrackOutput {
    * @param target The buffer into which data should be written.
    * @param length The number of bytes to read.
    */
-  private void readData(long absolutePosition, ByteBuffer target, int length) {
+  private void readData(long absolutePosition, ByteBuffer target, int length, int format) {
     int remaining = length;
     String logMessage = "";
-    logMessage = "readData(allocation -> DecodeInputBuffer.ByteBuffer)[absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
-    Log.d(TAG, logMessage);
-    TraceUtil.beginSection(logMessage);
+    String type;
+    switch(format) {
+      case C.TRACK_TYPE_AUDIO:
+        type = "audio";
+        break;
+      case C.TRACK_TYPE_VIDEO:
+        type = "video";
+        break;
+      case C.TRACK_TYPE_METADATA:
+        type = "metadata";
+        break;
+      case C.TRACK_TYPE_DEFAULT:
+        type = "default";
+        break;
+      case C.TRACK_TYPE_TEXT:
+        type = "text";
+        break;
+      default:
+        type = "unknown";
+        break;
+    }
+
     while (remaining > 0) {
       dropDownstreamTo(absolutePosition);
       int positionInAllocation = (int) (absolutePosition - totalBytesDropped);
       int toCopy = Math.min(remaining, allocationLength - positionInAllocation);
       Allocation allocation = dataQueue.peek();
-      logMessage = "readData(from allocation #" +allocation.id + ")[absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
-      Log.d(TAG, logMessage);
+//      logMessage = "readData(allocation #" +allocation.id + " -> DecodeInputBuffer.ByteBuffer)[format=" + type + ", absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
+//      Log.d(TAG, logMessage);
       target.put(allocation.data, allocation.translateOffset(positionInAllocation), toCopy);
       absolutePosition += toCopy;
       remaining -= toCopy;
     }
-    logMessage = "readData(allocation -> DecodeInputBuffer.ByteBuffer)[FIN, absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
-    Log.d(TAG, logMessage);
-    TraceUtil.endSection();
+//    logMessage = "readData(allocation -> DecodeInputBuffer.ByteBuffer)[FIN, format=" + type + ", absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
+//    Log.d(TAG, logMessage);
   }
 
   /**
@@ -442,7 +476,7 @@ public final class DefaultTrackOutput implements TrackOutput {
    */
   private void dropDownstreamTo(long absolutePosition) {
     String logMessage = "DefaultTrackOutput.dropDownstreamTo(" + absolutePosition + ")";
-    Log.d(TAG, logMessage);
+//    Log.d(TAG, logMessage);
     TraceUtil.beginSection(logMessage);
     int relativePosition = (int) (absolutePosition - totalBytesDropped);
     int allocationIndex = relativePosition / allocationLength;
@@ -661,6 +695,7 @@ public final class DefaultTrackOutput implements TrackOutput {
     private Format upstreamFormat;
     private int upstreamSourceId;
     private final String TAG = "TrackOutput.InfoQueue";
+    private long frameCount;
 
     public InfoQueue() {
       capacity = SAMPLE_CAPACITY_INCREMENT;
@@ -675,6 +710,7 @@ public final class DefaultTrackOutput implements TrackOutput {
       largestQueuedTimestampUs = Long.MIN_VALUE;
       upstreamFormatRequired = true;
       upstreamKeyframeRequired = true;
+      frameCount = 0;
     }
 
     public void clearSampleData() {
@@ -762,6 +798,22 @@ public final class DefaultTrackOutput implements TrackOutput {
     }
 
     /**
+     * Return current queue size.
+     */
+    public synchronized int getQueueSize() {
+      return queueSize;
+    }
+
+    /**
+     * Return current queued frame time in us time.
+     * @param index
+     * @return
+     */
+    public synchronized long getQueuedFrameTimeUs(int index) {
+      return timesUs[index];
+    }
+
+    /**
      * Returns the upstream {@link Format} in which samples are being queued.
      */
     public synchronized Format getUpstreamFormat() {
@@ -834,7 +886,7 @@ public final class DefaultTrackOutput implements TrackOutput {
       extrasHolder.size = sizes[relativeReadIndex];
       extrasHolder.offset = offsets[relativeReadIndex];
       extrasHolder.encryptionKeyId = encryptionKeys[relativeReadIndex];
-      String logMessage = "BufferExtractsHolder[size=" +extrasHolder.size+ ", offset="+extrasHolder.offset+"], relaIndex= " +relativeReadIndex+ ", timeUs=" + buffer.timeUs +", largeDeqTimestampUs=" + largestDequeuedTimestampUs;
+      String logMessage = "BufferExtractsHolder[format=" + formats[relativeReadIndex].sampleMimeType + ", size=" +extrasHolder.size+ ", offset="+extrasHolder.offset+"], relaIndex= " +relativeReadIndex+ ", timeUs=" + buffer.timeUs +", largeDeqTimestampUs=" + largestDequeuedTimestampUs;
       Log.d(TAG, logMessage);
       largestDequeuedTimestampUs = Math.max(largestDequeuedTimestampUs, buffer.timeUs);
       queueSize--;
@@ -952,7 +1004,8 @@ public final class DefaultTrackOutput implements TrackOutput {
       sourceIds[relativeWriteIndex] = upstreamSourceId;
       // Increment the write index.
       queueSize++;
-      Log.d(TAG, "commitSample[timeUs="+timeUs+", relativeWriteIndex="+relativeWriteIndex+ ", sampleFlags="+sampleFlags+", offset="+offset+", size="+size+", queueSize="+ queueSize + "]");
+      frameCount  = frameCount + 1;
+      Log.d(TAG, "commitSample[format=" + upstreamFormat.sampleMimeType + ", timeUs="+timeUs+", relativeWriteIndex="+relativeWriteIndex+ ", sampleFlags="+sampleFlags+", offset="+offset+", size="+size+", queueSize="+ queueSize + ", frameCount=" + frameCount + "]");
       if (queueSize == capacity) {
         // Increase the capacity.
         int newCapacity = capacity + SAMPLE_CAPACITY_INCREMENT;

@@ -229,7 +229,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     this.mediaCodecSelector = Assertions.checkNotNull(mediaCodecSelector);
     this.drmSessionManager = drmSessionManager;
     this.playClearSamplesWithoutKeys = playClearSamplesWithoutKeys;
-    buffer = new DecoderInputBuffer(DecoderInputBuffer.BUFFER_REPLACEMENT_MODE_DISABLED);
+    buffer = new DecoderInputBuffer(DecoderInputBuffer.BUFFER_REPLACEMENT_MODE_DISABLED, trackType);
     flagsOnlyBuffer = DecoderInputBuffer.newFlagsOnlyInstance();
     formatHolder = new FormatHolder();
     decodeOnlyPresentationTimestamps = new ArrayList<>();
@@ -711,7 +711,28 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
 //      Log.d(TAG, "Queue input bufferIndex @" + inputIndex + " with ByteBuffer: " + buffer.data.hashCode());
       buffer.flip();
 //      Log.d(TAG, "New ByteBuffer bufferIndex @" + inputIndex + " hash: " + buffer.data.hashCode());
-      Log.d(TAG, "ByteBuffer bufferIndex @" + inputIndex + " queued.");
+      String type;
+      switch(buffer.format) {
+        case C.TRACK_TYPE_AUDIO:
+          type = "audio";
+          break;
+        case C.TRACK_TYPE_VIDEO:
+          type = "video";
+          break;
+        case C.TRACK_TYPE_METADATA:
+          type = "metadata";
+          break;
+        case C.TRACK_TYPE_DEFAULT:
+          type = "default";
+                  break;
+        case C.TRACK_TYPE_TEXT:
+          type = "text";
+          break;
+        default:
+          type = "unknown";
+          break;
+      }
+      Log.d(TAG, type + " ByteBuffer bufferIndex @" + inputIndex + " queued.[timeUs=" + buffer.timeUs +"]");
       onQueueInputBuffer(buffer);
 
       if (bufferEncrypted) {

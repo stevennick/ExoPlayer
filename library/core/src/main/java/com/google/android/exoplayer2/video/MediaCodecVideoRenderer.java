@@ -62,7 +62,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   private static final int[] STANDARD_LONG_EDGE_VIDEO_PX = new int[] {
       1920, 1600, 1440, 1280, 960, 854, 640, 540, 480};
 
-  private final VideoFrameReleaseTimeHelper frameReleaseTimeHelper;
+  protected final VideoFrameReleaseTimeHelper frameReleaseTimeHelper;
   private final EventDispatcher eventDispatcher;
   private final long allowedJoiningTimeMs;
   private final int maxDroppedFramesToNotify;
@@ -74,7 +74,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   private Surface surface;
   @C.VideoScalingMode
   private int scalingMode;
-  private boolean renderedFirstFrame;
+  protected boolean renderedFirstFrame;
   private long joiningDeadlineMs;
   private long droppedFrameAccumulationStartTimeMs;
   private int droppedFrames;
@@ -495,14 +495,14 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     return earlyUs < -30000;
   }
 
-  private void skipOutputBuffer(MediaCodec codec, int bufferIndex) {
+  protected void skipOutputBuffer(MediaCodec codec, int bufferIndex) {
     TraceUtil.beginSection("MediaCodecVideoRenderer.skipVideoBuffer");
     codec.releaseOutputBuffer(bufferIndex, false);
     TraceUtil.endSection();
     decoderCounters.skippedOutputBufferCount++;
   }
 
-  private void dropOutputBuffer(MediaCodec codec, int bufferIndex) {
+  protected void dropOutputBuffer(MediaCodec codec, int bufferIndex) {
     TraceUtil.beginSection("MediaCodecVideoRenderer.dropVideoBuffer");
     codec.releaseOutputBuffer(bufferIndex, false);
     TraceUtil.endSection();
@@ -516,7 +516,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     }
   }
 
-  private void renderOutputBuffer(MediaCodec codec, int bufferIndex) {
+  protected void renderOutputBuffer(MediaCodec codec, int bufferIndex) {
     maybeNotifyVideoSizeChanged();
     TraceUtil.beginSection("MediaCodecVideoRenderer.releaseOutputBuffer");
     codec.releaseOutputBuffer(bufferIndex, true);
@@ -527,9 +527,9 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   }
 
   @TargetApi(21)
-  private void renderOutputBufferV21(MediaCodec codec, int bufferIndex, long releaseTimeNs) {
+  protected void renderOutputBufferV21(MediaCodec codec, int bufferIndex, long releaseTimeNs) {
     maybeNotifyVideoSizeChanged();
-    String logMessage = "release video output buffer with bufferIndex @" + bufferIndex;
+    String logMessage = "Release video output buffer with bufferIndex @" + bufferIndex + "[rendered=" + (decoderCounters.renderedOutputBufferCount + 1) + "]";
     Log.d(TAG, logMessage);
     TraceUtil.beginSection(logMessage);
     codec.releaseOutputBuffer(bufferIndex, releaseTimeNs);
