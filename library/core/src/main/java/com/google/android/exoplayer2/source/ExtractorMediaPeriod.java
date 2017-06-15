@@ -104,6 +104,7 @@ import java.util.Arrays;
   private long durationUs;
   private boolean[] trackEnabledStates;
   private boolean[] trackIsAudioVideoFlags;
+  private boolean[] trackIsVideoFlags;
   private boolean haveAudioVideoTracks;
   private long length;
 
@@ -114,6 +115,9 @@ import java.util.Arrays;
   private boolean loadingFinished;
   private boolean released;
   private final String TAG = "ExtractorMediaPeriod";
+  private final boolean makeSureConstantLatency = false;
+  private final int framesize = 10;
+  private final int fps = 30;
 
   /**
    * @param uri The {@link Uri} of the media stream.
@@ -308,6 +312,23 @@ import java.util.Arrays;
     return C.TIME_UNSET;
   }
 
+  /**
+   * Get current buffered video frame size.
+   * Only selected video track size will be considered.
+   */
+  public int getBufferedVideoFrameSize() {
+    int frameSize = 0;
+    if(!prepared) { return frameSize; }
+    int trackCount = sampleQueues.size();
+    for (int i = 0; i < trackCount; i++) {
+      if (trackIsVideoFlags[i] && trackEnabledStates[i]) {
+        frameSize = Math.max(frameSize,
+        sampleQueues.valueAt(i).getQueueSize());
+      }
+    }
+    return frameSize;
+  }
+
   @Override
   public long getBufferedPositionUs() {
     if (loadingFinished) {
@@ -484,6 +505,7 @@ import java.util.Arrays;
     TrackGroup[] trackArray = new TrackGroup[trackCount];
     trackIsAudioVideoFlags = new boolean[trackCount];
     trackEnabledStates = new boolean[trackCount];
+    trackIsVideoFlags = new boolean[trackCount];
     durationUs = seekMap.getDurationUs();
     for (int i = 0; i < trackCount; i++) {
       Format trackFormat = sampleQueues[i].getUpstreamFormat();
@@ -492,6 +514,7 @@ import java.util.Arrays;
       boolean isAudioVideo = MimeTypes.isVideo(mimeType) || MimeTypes.isAudio(mimeType);
       trackIsAudioVideoFlags[i] = isAudioVideo;
       haveAudioVideoTracks |= isAudioVideo;
+      trackIsVideoFlags[i] = MimeTypes.isVideo(mimeType);
     }
     tracks = new TrackGroupArray(trackArray);
     prepared = true;
@@ -676,6 +699,28 @@ import java.util.Arrays;
       pendingExtractorSeek = true;
     }
 
+    /**
+     *
+     * @param frameSize
+     * @param fps
+     */
+    private void limitLatency(int frameSize, int fps) {
+      long largestQueuedTimestampUs = getBufferedPositionUs();
+      int currentQueuedFrameSize = getBufferedVideoFrameSize();
+      if (currentQueuedFrameSize > frameSize) {
+        // Skip frames to under frame size defined in frameSize.
+        int track = sampleQueues.size();
+        for(int index = 0; index < track; index++) {
+          long nextPositionUs = largestQueuedTimestampUs - (100000 / fps * frameSize);
+          String logMessage= "extractor.load[SKIP, queuedFrameSize=" + currentQueuedFrameSize +", largestQueuedTimestampUs=" + largestQueuedTimestampUs + ", nextPositionUs=" +nextPositionUs+ "]";
+          Log.d(TAG, logMessage);
+          if(trackIsAudioVideoFlags[index] && trackEnabledStates[index]) {
+            skipData(index, nextPositionUs);
+          }
+        }
+      }
+    }
+
     @Override
     public void cancelLoad() {
       loadCanceled = true;
@@ -710,7 +755,7 @@ import java.util.Arrays;
             extractor.seek(position, seekTimeUs);
             pendingExtractorSeek = false;
           }
-          logMessage= "extractor.read[inputPos=" + input.getPosition() +", initPos=" + position + "]";
+          logMessage= "extractor.read[START, inputPos=" + input.getPosition() +", initPos=" + position + "]";
           Log.d(TAG, logMessage);
           TraceUtil.beginSection(logMessage);
           while (result == Extractor.RESULT_CONTINUE && !loadCanceled) {
@@ -721,9 +766,12 @@ import java.util.Arrays;
               loadCondition.close();
               handler.post(onContinueLoadingRequestedRunnable);
             }
+            if (makeSureConstantLatency) {
+              this.limitLatency(framesize, fps);
+            }
           }
           TraceUtil.endSection();
-          logMessage= "extractor.read[inputPos=" + input.getPosition() +", initPos=" + position + "]";
+          logMessage= "extractor.read[PAUSE, inputPos=" + input.getPosition() +", initPos=" + position + "]";
           Log.d(TAG, logMessage);
         } finally {
           if (result == Extractor.RESULT_SEEK) {

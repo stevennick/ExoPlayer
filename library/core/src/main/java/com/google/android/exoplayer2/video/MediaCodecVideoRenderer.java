@@ -68,7 +68,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   private static final int MAX_PENDING_OUTPUT_STREAM_OFFSET_COUNT = 10;
 
   private final Context context;
-  private final VideoFrameReleaseTimeHelper frameReleaseTimeHelper;
+  protected final VideoFrameReleaseTimeHelper frameReleaseTimeHelper;
   private final EventDispatcher eventDispatcher;
   private final long allowedJoiningTimeMs;
   private final int maxDroppedFramesToNotify;
@@ -83,7 +83,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   private Surface dummySurface;
   @C.VideoScalingMode
   private int scalingMode;
-  private boolean renderedFirstFrame;
+  protected boolean renderedFirstFrame;
   private long joiningDeadlineMs;
   private long droppedFrameAccumulationStartTimeMs;
   private int droppedFrames;
@@ -649,7 +649,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   protected void renderOutputBufferV21(MediaCodec codec, int index, long presentationTimeUs,
       long releaseTimeNs) {
     maybeNotifyVideoSizeChanged();
-    String logMessage = "release video output buffer with bufferIndex @" + bufferIndex;
+    String logMessage = "Release video output buffer with bufferIndex @" + bufferIndex + "[rendered=" + (decoderCounters.renderedOutputBufferCount + 1) + "]";
     Log.d(TAG, logMessage);
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, releaseTimeNs);

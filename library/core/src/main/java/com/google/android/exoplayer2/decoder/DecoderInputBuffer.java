@@ -26,6 +26,8 @@ import java.nio.ByteBuffer;
  */
 public class DecoderInputBuffer extends Buffer {
 
+  public final int format;
+
   /**
    * The buffer replacement mode, which may disable replacement.
    */
@@ -78,8 +80,18 @@ public class DecoderInputBuffer extends Buffer {
    *     {@link #BUFFER_REPLACEMENT_MODE_DIRECT}.
    */
   public DecoderInputBuffer(@BufferReplacementMode int bufferReplacementMode) {
+    this(bufferReplacementMode, C.TRACK_TYPE_UNKNOWN);
+  }
+
+  /**
+   * @param bufferReplacementMode Determines the behavior of {@link #ensureSpaceForWrite(int)}. One
+   *     of {@link #BUFFER_REPLACEMENT_MODE_DISABLED}, {@link #BUFFER_REPLACEMENT_MODE_NORMAL} and
+   *     {@link #BUFFER_REPLACEMENT_MODE_DIRECT}.
+   */
+  public DecoderInputBuffer(@BufferReplacementMode int bufferReplacementMode, int format) {
     this.cryptoInfo = new CryptoInfo();
     this.bufferReplacementMode = bufferReplacementMode;
+    this.format = format;
   }
 
   /**
