@@ -99,7 +99,7 @@ import java.io.IOException;
   private final String TAG = "ExtractorMediaPeriod";
   private final boolean makeSureConstantLatency = false;
   private final int framesize = 10;
-  private final int fps = 30;
+  private final int fps = 25;
 
   /**
    * @param uri The {@link Uri} of the media stream.
@@ -658,7 +658,7 @@ import java.io.IOException;
         // Skip frames to under frame size defined in frameSize.
         int track = sampleQueues.size();
         for(int index = 0; index < track; index++) {
-          long nextPositionUs = largestQueuedTimestampUs - (100000 / fps * frameSize);
+          long nextPositionUs = largestQueuedTimestampUs - (10000 / fps * frameSize);
           String logMessage= "extractor.load[SKIP, queuedFrameSize=" + currentQueuedFrameSize +", largestQueuedTimestampUs=" + largestQueuedTimestampUs + ", nextPositionUs=" +nextPositionUs+ "]";
           Log.d(TAG, logMessage);
           if(trackIsAudioVideoFlags[index] && trackEnabledStates[index]) {
