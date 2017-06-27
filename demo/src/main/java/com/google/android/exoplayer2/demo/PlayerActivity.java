@@ -325,8 +325,8 @@ public class PlayerActivity extends Activity implements OnClickListener, EventLi
       trackSelector = new DefaultTrackSelector(adaptiveTrackSelectionFactory);
       trackSelectionHelper = new TrackSelectionHelper(trackSelector, adaptiveTrackSelectionFactory);
       lastSeenTrackGroupArray = null;
-      int minBufferMs = 2000;
-      int maxBufferMs = 5000;
+      int minBufferMs = 150000;
+      int maxBufferMs = 300000;
       long playbackBufferMs = 1;
       long reInitBufferMs = 1;
       LoadControl loadControl = new DefaultLoadControl(new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE),
