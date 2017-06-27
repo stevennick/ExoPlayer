@@ -17,6 +17,8 @@ package com.google.android.exoplayer2.decoder;
 
 import android.support.annotation.IntDef;
 import com.google.android.exoplayer2.C;
+import com.google.android.exoplayer2.util.TraceUtil;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
@@ -111,11 +113,13 @@ public class DecoderInputBuffer extends Buffer {
       data = createReplacementByteBuffer(length);
       return;
     }
+    TraceUtil.beginSection("DecoderInputBuffer.ensureSpaceForWrite");
     // Check whether the current buffer is sufficient.
     int capacity = data.capacity();
     int position = data.position();
     int requiredCapacity = position + length;
     if (capacity >= requiredCapacity) {
+      TraceUtil.endSection();
       return;
     }
     // Instantiate a new buffer if possible.
@@ -128,6 +132,7 @@ public class DecoderInputBuffer extends Buffer {
     }
     // Set the new buffer.
     data = newData;
+    TraceUtil.endSection();
   }
 
   /**

@@ -42,7 +42,7 @@ import com.google.android.exoplayer2.mediacodec.MediaCodecUtil.DecoderQueryExcep
 import com.google.android.exoplayer2.source.MediaPeriod;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.NalUnitUtil;
-import com.google.android.exoplayer2.util.TraceUtil;
+//import com.google.android.exoplayer2.util.TraceUtil;
 import com.google.android.exoplayer2.util.Util;
 
 import java.lang.annotation.Retention;
@@ -65,6 +65,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     private static final int CUSTOM_ERROR_CODE_BASE = -50000;
     private static final int NO_SUITABLE_DECODER_ERROR = CUSTOM_ERROR_CODE_BASE + 1;
     private static final int DECODER_QUERY_ERROR = CUSTOM_ERROR_CODE_BASE + 2;
+
 
     /**
      * The mime type for which a decoder was being initialized.
@@ -120,6 +121,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
   }
 
   private static final String TAG = "MediaCodecRenderer";
+  private static final long RENDERER_TIMESTAMP_OFFSET_US = 60000000;
 
   private long loopCount;
 
@@ -388,7 +390,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     codecNeedsMonoChannelCountWorkaround = codecNeedsMonoChannelCountWorkaround(codecName, format);
     try {
       long codecInitializingTimestamp = SystemClock.elapsedRealtime();
-      TraceUtil.beginSection("MediaCodecRenderer.createCodec:" + codecName);
+      // TraceUtil.beginSection("MediaCodecRenderer.createCodec:" + codecName);
       codec = MediaCodec.createByCodecName(codecName);
       TraceUtil.endSection();
       TraceUtil.beginSection("configureCodec");
@@ -396,7 +398,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       TraceUtil.endSection();
       TraceUtil.beginSection("MediaCodecRenderer.startCodec");
       codec.start();
-      TraceUtil.endSection();
+      // TraceUtil.endSection();
       long codecInitializedTimestamp = SystemClock.elapsedRealtime();
       onCodecInitialized(codecName, codecInitializedTimestamp,
           codecInitializedTimestamp - codecInitializingTimestamp);
@@ -549,10 +551,10 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     // We have a format.
     maybeInitCodec();
     if (codec != null) {
-      TraceUtil.beginSection("drainAndFeed - loop " + loopCount + ", rendered:" + decoderCounters.renderedOutputBufferCount + ", skip:"+ decoderCounters.skippedOutputBufferCount + ", drop:" + decoderCounters.droppedOutputBufferCount);
+      // TraceUtil.beginSection("drainAndFeed - loop " + loopCount + ", rendered:" + decoderCounters.renderedOutputBufferCount + ", skip:"+ decoderCounters.skippedOutputBufferCount + ", drop:" + decoderCounters.droppedOutputBufferCount);
       while (drainOutputBuffer(positionUs, elapsedRealtimeUs)) {}
       while (feedInputBuffer()) {}
-      TraceUtil.endSection();
+      // TraceUtil.endSection();
       loopCount++;
     } else {
       skipSource(positionUs);
@@ -608,20 +610,46 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    * @throws ExoPlaybackException If an error occurs feeding the input buffer.
    */
   private boolean feedInputBuffer() throws ExoPlaybackException {
-    String logMessage = "readSource from allocation to decodeInputBuffer.";
+    // Detect buffer type (For source trace only)
+    String type;
+    switch(buffer.format) {
+      case C.TRACK_TYPE_AUDIO:
+        type = "audio";
+        break;
+      case C.TRACK_TYPE_VIDEO:
+        type = "video";
+        break;
+      case C.TRACK_TYPE_METADATA:
+        type = "metadata";
+        break;
+      case C.TRACK_TYPE_DEFAULT:
+        type = "default";
+        break;
+      case C.TRACK_TYPE_TEXT:
+        type = "text";
+        break;
+      default:
+        type = "unknown";
+        break;
+    }
+    String logMessage = "feedInputBuffer for " + type;
 //    Log.d(TAG, logMessage);
-    TraceUtil.beginSection(logMessage);
+    // TraceUtil.beginSection(logMessage);
     if (codec == null || codecReinitializationState == REINITIALIZATION_STATE_WAIT_END_OF_STREAM
         || inputStreamEnded) {
       // We need to reinitialize the codec or the input stream has ended.
-      TraceUtil.endSection();
+//      logMessage = "feedInputBuffer for " + type + ": (FALSE) reinitialize the codec or the input stream has ended.";
+//      Log.d(TAG, logMessage);
+      // TraceUtil.endSection();
       return false;
     }
 
     if (inputIndex < 0) {
       inputIndex = codec.dequeueInputBuffer(0);
       if (inputIndex < 0) {
-        TraceUtil.endSection();
+//        logMessage = "feedInputBuffer for " + type + ": (FALSE) inputIndex failed.";
+//        Log.d(TAG, logMessage);
+        // TraceUtil.endSection();
         return false;
       }
       buffer.data = inputBuffers[inputIndex];
@@ -639,7 +667,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         inputIndex = C.INDEX_UNSET;
       }
       codecReinitializationState = REINITIALIZATION_STATE_WAIT_END_OF_STREAM;
-      TraceUtil.endSection();
+//      logMessage = "feedInputBuffer for " + type + ": (FALSE) reinit state wait EOF.";
+//      Log.d(TAG, logMessage);
+      // TraceUtil.endSection();
       return false;
     }
 
@@ -649,7 +679,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       codec.queueInputBuffer(inputIndex, 0, ADAPTATION_WORKAROUND_BUFFER.length, 0, 0);
       inputIndex = C.INDEX_UNSET;
       codecReceivedBuffers = true;
-      TraceUtil.endSection();
+//      logMessage = "feedInputBuffer for " + type + ": (TRUE) codec adaptation workaround apply.";
+//      Log.d(TAG, logMessage);
+      // TraceUtil.endSection();
       return true;
     }
 
@@ -669,11 +701,17 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         codecReconfigurationState = RECONFIGURATION_STATE_QUEUE_PENDING;
       }
       adaptiveReconfigurationBytes = buffer.data.position();
+//      logMessage = "Begin read data from allocation to decode input buffer.";
+//      Log.d(TAG, logMessage);
       result = readSource(formatHolder, buffer, false);
+//      logMessage = "Finished read data from allocation to decode input buffer.";
+//      Log.d(TAG, logMessage);
     }
 
     if (result == C.RESULT_NOTHING_READ) {
-      TraceUtil.endSection();
+//      logMessage = "feedInputBuffer for " + type + ": (FALSE) Nothing READ.";
+//      Log.d(TAG, logMessage);
+      // TraceUtil.endSection();
       return false;
     }
     if (result == C.RESULT_FORMAT_READ) {
@@ -684,10 +722,13 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         codecReconfigurationState = RECONFIGURATION_STATE_WRITE_PENDING;
       }
       onInputFormatChanged(formatHolder.format);
-      TraceUtil.endSection();
+//      logMessage = "feedInputBuffer for " + type + ": (TRUE) Format READ, input format changed.";
+//      Log.d(TAG, logMessage);
+      // TraceUtil.endSection();
       return true;
     }
-
+    Log.d(TAG, type + " ByteBuffer bufferIndex @" + inputIndex + " trying queue.");
+    int previousIndex = inputIndex;
     // We've read a buffer.
     if (buffer.isEndOfStream()) {
       if (codecReconfigurationState == RECONFIGURATION_STATE_QUEUE_PENDING) {
@@ -700,7 +741,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       inputStreamEnded = true;
       if (!codecReceivedBuffers) {
         processEndOfStream();
-        TraceUtil.endSection();
+//        logMessage = "feedInputBuffer for " + type + ": (FALSE) codec no buffer received.";
+//        Log.d(TAG, logMessage);
+        // TraceUtil.endSection();
         return false;
       }
       try {
@@ -712,10 +755,13 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
           inputIndex = C.INDEX_UNSET;
         }
       } catch (CryptoException e) {
-        TraceUtil.endSection();
+//        logMessage = "feedInputBuffer for " + type + ": (FALSE) Crypto exception.";
+//        Log.d(TAG, logMessage);
+        // TraceUtil.endSection();
         throw ExoPlaybackException.createForRenderer(e, getIndex());
       }
-      TraceUtil.endSection();
+      // TraceUtil.endSection();
+      Log.d(TAG, type + " ByteBuffer bufferIndex @" + previousIndex + " queued.[EOF, timeUs=" + (buffer.timeUs - RENDERER_TIMESTAMP_OFFSET_US) +"]");
       return false;
     }
     if (waitingForFirstSyncFrame && !buffer.isKeyFrame()) {
@@ -725,20 +771,26 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         // data into a subsequent buffer (if there is one).
         codecReconfigurationState = RECONFIGURATION_STATE_WRITE_PENDING;
       }
-      TraceUtil.endSection();
+//      logMessage = "feedInputBuffer for " + type + ": (TRUE) Wait for first Keyframe.";
+//      Log.d(TAG, logMessage);
+      // TraceUtil.endSection();
       return true;
     }
     waitingForFirstSyncFrame = false;
     boolean bufferEncrypted = buffer.isEncrypted();
     waitingForKeys = shouldWaitForKeys(bufferEncrypted);
     if (waitingForKeys) {
-      TraceUtil.endSection();
+//      logMessage = "feedInputBuffer for " + type + ": (FALSE) Wait for Keyframe.";
+//      Log.d(TAG, logMessage);
+      // TraceUtil.endSection();
       return false;
     }
     if (codecNeedsDiscardToSpsWorkaround && !bufferEncrypted) {
       NalUnitUtil.discardToSps(buffer.data);
       if (buffer.data.position() == 0) {
-        TraceUtil.endSection();
+//        logMessage = "feedInputBuffer for " + type + ": (TRUE) discardToSps.";
+//        Log.d(TAG, logMessage);
+        // TraceUtil.endSection();
         return true;
       }
       codecNeedsDiscardToSpsWorkaround = false;
@@ -748,31 +800,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       if (buffer.isDecodeOnly()) {
         decodeOnlyPresentationTimestamps.add(presentationTimeUs);
       }
-//      Log.d(TAG, "Queue input bufferIndex @" + inputIndex + " with ByteBuffer: " + buffer.data.hashCode());
       buffer.flip();
-//      Log.d(TAG, "New ByteBuffer bufferIndex @" + inputIndex + " hash: " + buffer.data.hashCode());
-      String type;
-      switch(buffer.format) {
-        case C.TRACK_TYPE_AUDIO:
-          type = "audio";
-          break;
-        case C.TRACK_TYPE_VIDEO:
-          type = "video";
-          break;
-        case C.TRACK_TYPE_METADATA:
-          type = "metadata";
-          break;
-        case C.TRACK_TYPE_DEFAULT:
-          type = "default";
-                  break;
-        case C.TRACK_TYPE_TEXT:
-          type = "text";
-          break;
-        default:
-          type = "unknown";
-          break;
-      }
-      Log.d(TAG, type + " ByteBuffer bufferIndex @" + inputIndex + " queued.[timeUs=" + buffer.timeUs +"]");
       onQueueInputBuffer(buffer);
 
       if (bufferEncrypted) {
@@ -781,16 +809,20 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         codec.queueSecureInputBuffer(inputIndex, 0, cryptoInfo, presentationTimeUs, 0);
       } else {
         codec.queueInputBuffer(inputIndex, 0, buffer.data.limit(), presentationTimeUs, 0);
+
       }
       inputIndex = C.INDEX_UNSET;
       codecReceivedBuffers = true;
       codecReconfigurationState = RECONFIGURATION_STATE_NONE;
       decoderCounters.inputBufferCount++;
     } catch (CryptoException e) {
-      TraceUtil.endSection();
+//      logMessage = "feedInputBuffer for " + type + ": (FALSE) Crypto exception.";
+//      Log.d(TAG, logMessage);
+      // TraceUtil.endSection();
       throw ExoPlaybackException.createForRenderer(e, getIndex());
     }
-    TraceUtil.endSection();
+    Log.d(TAG, type + " ByteBuffer bufferIndex @" + previousIndex + " queued.[timeUs=" + (buffer.timeUs - RENDERER_TIMESTAMP_OFFSET_US) +"]");
+    // TraceUtil.endSection();
     return true;
   }
 
@@ -968,6 +1000,8 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
   @SuppressWarnings("deprecation")
   private boolean drainOutputBuffer(long positionUs, long elapsedRealtimeUs)
       throws ExoPlaybackException {
+    String logMessage = "Deque outputBuffer for " + codec.getInputFormat().getString("mime") + ".";
+    Log.d(TAG, logMessage);
     if (outputIndex < 0) {
       if (codecNeedsEosOutputExceptionWorkaround && codecReceivedEos) {
         try {
@@ -986,6 +1020,8 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
             getDequeueOutputBufferTimeoutUs());
       }
       if (outputIndex >= 0) {
+        logMessage = "Release outputBuffer for " + codec.getInputFormat().getString("mime") + ".";
+        Log.d(TAG, logMessage);
         // We've dequeued a buffer.
         if (shouldSkipAdaptationWorkaroundOutputBuffer) {
           shouldSkipAdaptationWorkaroundOutputBuffer = false;

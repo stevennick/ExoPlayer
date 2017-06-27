@@ -19,6 +19,8 @@ import com.google.android.exoplayer2.decoder.DecoderInputBuffer;
 import com.google.android.exoplayer2.source.SampleStream;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.MediaClock;
+import com.google.android.exoplayer2.util.TraceUtil;
+
 import java.io.IOException;
 
 /**
@@ -274,10 +276,12 @@ public abstract class BaseRenderer implements Renderer, RendererCapabilities {
    */
   protected final int readSource(FormatHolder formatHolder, DecoderInputBuffer buffer,
       boolean formatRequired) {
+      TraceUtil.beginSection("BaseRenderer.readSource");
     int result = stream.readData(formatHolder, buffer, formatRequired);
     if (result == C.RESULT_BUFFER_READ) {
       if (buffer.isEndOfStream()) {
         readEndOfStream = true;
+          TraceUtil.endSection();
         return streamIsFinal ? C.RESULT_BUFFER_READ : C.RESULT_NOTHING_READ;
       }
       buffer.timeUs += streamOffsetUs;
@@ -288,6 +292,7 @@ public abstract class BaseRenderer implements Renderer, RendererCapabilities {
         formatHolder.format = format;
       }
     }
+    TraceUtil.endSection();
     return result;
   }
 

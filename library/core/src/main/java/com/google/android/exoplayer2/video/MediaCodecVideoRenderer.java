@@ -514,6 +514,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     if (!renderedFirstFrame) {
       if (Util.SDK_INT >= 21) {
         renderOutputBufferV21(codec, bufferIndex, presentationTimeUs, System.nanoTime());
+        // renderOutputBufferV21(codec, bufferIndex, System.nanoTime(), bufferPresentationTimeUs);
       } else {
         renderOutputBuffer(codec, bufferIndex, presentationTimeUs);
       }
@@ -547,6 +548,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
       // Let the underlying framework time the release.
       if (earlyUs < 50000) {
         renderOutputBufferV21(codec, bufferIndex, presentationTimeUs, adjustedReleaseTimeNs);
+        // renderOutputBufferV21(codec, bufferIndex, adjustedReleaseTimeNs, bufferPresentationTimeUs);
         return true;
       }
     } else {
@@ -616,6 +618,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     if (droppedFrames == maxDroppedFramesToNotify) {
       maybeNotifyDroppedFrames();
     }
+    Log.d(TAG, "Video output buffer @" + bufferIndex + " dropped.");
   }
 
   /**
@@ -631,6 +634,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, true);
     TraceUtil.endSection();
+    Log.d(TAG, "Video output buffer @" + index + " rendered.");
     decoderCounters.renderedOutputBufferCount++;
     consecutiveDroppedFrameCount = 0;
     maybeNotifyRenderedFirstFrame();
@@ -649,11 +653,13 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   protected void renderOutputBufferV21(MediaCodec codec, int index, long presentationTimeUs,
       long releaseTimeNs) {
     maybeNotifyVideoSizeChanged();
-    String logMessage = "Release video output buffer with bufferIndex @" + bufferIndex + "[rendered=" + (decoderCounters.renderedOutputBufferCount + 1) + "]";
+    String logMessage = "Video output buffer @" + bufferIndex + " start renderer[bufPresentationTimeus=" + (bufferPresentationTimeUs - 60000000) + "]";
     Log.d(TAG, logMessage);
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, releaseTimeNs);
     TraceUtil.endSection();
+    logMessage = "Released video output buffer with rendered bufferIndex @" + index + "[bufPresentationTimeus=" + (presentationTimeUs - 60000000) + ", rendered=" + (decoderCounters.renderedOutputBufferCount + 1) + "]";
+    Log.d(TAG, logMessage);
     decoderCounters.renderedOutputBufferCount++;
     consecutiveDroppedFrameCount = 0;
     maybeNotifyRenderedFirstFrame();
