@@ -27,7 +27,7 @@ import com.google.android.exoplayer2.upstream.Allocation;
 import com.google.android.exoplayer2.upstream.Allocator;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.ParsableByteArray;
-import com.google.android.exoplayer2.util.TraceUtil;
+//import com.google.android.exoplayer2.util.TraceUtil;
 import com.google.android.exoplayer2.util.Util;
 import java.io.EOFException;
 import java.io.IOException;
@@ -298,11 +298,13 @@ public final class DefaultTrackOutput implements TrackOutput {
    */
   public int readData(FormatHolder formatHolder, DecoderInputBuffer buffer, boolean formatRequired,
       boolean loadingFinished, long decodeOnlyUntilUs) {
+    // TraceUtil.beginSection("DefaultTrackOutput.readData()");
     int result = infoQueue.readData(formatHolder, buffer, formatRequired, loadingFinished,
         downstreamFormat, extrasHolder);
     switch (result) {
       case C.RESULT_FORMAT_READ:
         downstreamFormat = formatHolder.format;
+        // TraceUtil.endSection();
         return C.RESULT_FORMAT_READ;
       case C.RESULT_BUFFER_READ:
         if (!buffer.isEndOfStream()) {
@@ -319,10 +321,13 @@ public final class DefaultTrackOutput implements TrackOutput {
           // Advance the read head.
           dropDownstreamTo(extrasHolder.nextOffset);
         }
+        // TraceUtil.endSection();
         return C.RESULT_BUFFER_READ;
       case C.RESULT_NOTHING_READ:
+        // TraceUtil.endSection();
         return C.RESULT_NOTHING_READ;
       default:
+        // TraceUtil.endSection();
         throw new IllegalStateException();
     }
   }
@@ -408,29 +413,30 @@ public final class DefaultTrackOutput implements TrackOutput {
    * @param length The number of bytes to read.
    */
   private void readData(long absolutePosition, ByteBuffer target, int length, int format) {
+    // TraceUtil.beginSection("DefaultTrackOutput.readData()(Private)");
     int remaining = length;
-    String logMessage = "";
-    String type;
-    switch(format) {
-      case C.TRACK_TYPE_AUDIO:
-        type = "audio";
-        break;
-      case C.TRACK_TYPE_VIDEO:
-        type = "video";
-        break;
-      case C.TRACK_TYPE_METADATA:
-        type = "metadata";
-        break;
-      case C.TRACK_TYPE_DEFAULT:
-        type = "default";
-        break;
-      case C.TRACK_TYPE_TEXT:
-        type = "text";
-        break;
-      default:
-        type = "unknown";
-        break;
-    }
+//    String logMessage = "";
+//    String type;
+//    switch(format) {
+//      case C.TRACK_TYPE_AUDIO:
+//        type = "audio";
+//        break;
+//      case C.TRACK_TYPE_VIDEO:
+//        type = "video";
+//        break;
+//      case C.TRACK_TYPE_METADATA:
+//        type = "metadata";
+//        break;
+//      case C.TRACK_TYPE_DEFAULT:
+//        type = "default";
+//        break;
+//      case C.TRACK_TYPE_TEXT:
+//        type = "text";
+//        break;
+//      default:
+//        type = "unknown";
+//        break;
+//    }
 
     while (remaining > 0) {
       dropDownstreamTo(absolutePosition);
@@ -445,6 +451,7 @@ public final class DefaultTrackOutput implements TrackOutput {
     }
 //    logMessage = "readData(allocation -> DecodeInputBuffer.ByteBuffer)[FIN, format=" + type + ", absPos=" + absolutePosition +", len=" + length + ", rem=" + remaining + "]";
 //    Log.d(TAG, logMessage);
+    // TraceUtil.endSection();
   }
 
   /**
@@ -455,6 +462,7 @@ public final class DefaultTrackOutput implements TrackOutput {
    * @param length The number of bytes to read.
    */
   private void readData(long absolutePosition, byte[] target, int length) {
+    // TraceUtil.beginSection("DefaultTrackOutput.readData[](Private)");
     int bytesRead = 0;
     while (bytesRead < length) {
       dropDownstreamTo(absolutePosition);
@@ -466,6 +474,7 @@ public final class DefaultTrackOutput implements TrackOutput {
       absolutePosition += toCopy;
       bytesRead += toCopy;
     }
+    // TraceUtil.endSection();
   }
 
   /**
@@ -475,9 +484,8 @@ public final class DefaultTrackOutput implements TrackOutput {
    * @param absolutePosition The absolute position up to which allocations can be discarded.
    */
   private void dropDownstreamTo(long absolutePosition) {
-    String logMessage = "DefaultTrackOutput.dropDownstreamTo(" + absolutePosition + ")";
-//    Log.d(TAG, logMessage);
-    TraceUtil.beginSection(logMessage);
+//    String logMessage = "DefaultTrackOutput.dropDownstreamTo(" + absolutePosition + ")";
+    // TraceUtil.beginSection(logMessage);
     int relativePosition = (int) (absolutePosition - totalBytesDropped);
     int allocationIndex = relativePosition / allocationLength;
     for (int i = 0; i < allocationIndex; i++) {
@@ -486,7 +494,7 @@ public final class DefaultTrackOutput implements TrackOutput {
       allocator.release(remove);
       totalBytesDropped += allocationLength;
     }
-    TraceUtil.endSection();
+    // TraceUtil.endSection();
   }
 
   // Called by the loading thread.
@@ -541,11 +549,11 @@ public final class DefaultTrackOutput implements TrackOutput {
       length = prepareForAppend(length);
 //      String logMessage = "sampleData<ExtractorInput>(Fetch data from upstream to #" + lastAllocation.id + ")";
 //      Log.d(TAG, logMessage);
-//      TraceUtil.beginSection(logMessage);
+//      // TraceUtil.beginSection(logMessage);
       int bytesAppended = input.read(lastAllocation.data,
           lastAllocation.translateOffset(lastAllocationOffset), length);
-//      TraceUtil.endSection();
-//      String logMessage = "sampleData<ExtractorInput>(New data ID for allocation #" + lastAllocation.id + "): " + String.valueOf(Arrays.hashCode(lastAllocation.data));
+//      // TraceUtil.endSection();
+//      logMessage = "sampleData<ExtractorInput>(New data ID for allocation #" + lastAllocation.id + ", data saved.)";
 //      Log.d(TAG, logMessage);
       if (bytesAppended == C.RESULT_END_OF_INPUT) {
         if (allowEndOfInput) {
@@ -569,17 +577,18 @@ public final class DefaultTrackOutput implements TrackOutput {
     }
     String logMessage = "sampleData<ParsableByteArray>(upstream -> allocation)[len=" + length + "]";
 //    Log.d(TAG, logMessage);
-    TraceUtil.beginSection(logMessage);
+    // TraceUtil.beginSection(logMessage);
+    int thisAppendLength = 0;
     while (length > 0) {
-      int thisAppendLength = prepareForAppend(length);
+      thisAppendLength = prepareForAppend(length);
       buffer.readBytes(lastAllocation.data, lastAllocation.translateOffset(lastAllocationOffset),
           thisAppendLength);
       lastAllocationOffset += thisAppendLength;
       totalBytesWritten += thisAppendLength;
       length -= thisAppendLength;
     }
-    TraceUtil.endSection();
-    logMessage = "sampleData<ParsableByteArray>(upstream -> allocation)[FIN, lastId=#" + lastAllocation.id + "]";
+    // TraceUtil.endSection();
+//    logMessage = "sampleData<ParsableByteArray>(upstream -> allocation)[FIN, lastId=#" + lastAllocation.id + ", appendLen=" + thisAppendLength + "]";
 //    Log.d(TAG, logMessage);
     endWriteOperation();
   }
@@ -641,10 +650,8 @@ public final class DefaultTrackOutput implements TrackOutput {
       lastAllocationOffset = 0;
       lastAllocation = allocator.allocate();
       String logMessage = "prepareForAppend(dataQueue enque for #" + lastAllocation.id + "): " + String.valueOf(Arrays.hashCode(lastAllocation.data));
-//      Log.d(TAG, logMessage);
-//      TraceUtil.beginSection(logMessage);
+      Log.d(TAG, logMessage);
       dataQueue.add(lastAllocation);
-//      TraceUtil.endSection();
     }
     return Math.min(length, allocationLength - lastAllocationOffset);
   }
@@ -859,25 +866,31 @@ public final class DefaultTrackOutput implements TrackOutput {
     public synchronized int readData(FormatHolder formatHolder, DecoderInputBuffer buffer,
         boolean formatRequired, boolean loadingFinished, Format downstreamFormat,
         BufferExtrasHolder extrasHolder) {
+      // TraceUtil.beginSection("InfoQueue.readData");
       if (queueSize == 0) {
         if (loadingFinished) {
           buffer.setFlags(C.BUFFER_FLAG_END_OF_STREAM);
+          // TraceUtil.endSection();
           return C.RESULT_BUFFER_READ;
         } else if (upstreamFormat != null
             && (formatRequired || upstreamFormat != downstreamFormat)) {
           formatHolder.format = upstreamFormat;
+          // TraceUtil.endSection();
           return C.RESULT_FORMAT_READ;
         } else {
+          // TraceUtil.endSection();
           return C.RESULT_NOTHING_READ;
         }
       }
 
       if (formatRequired || formats[relativeReadIndex] != downstreamFormat) {
         formatHolder.format = formats[relativeReadIndex];
+        // TraceUtil.endSection();
         return C.RESULT_FORMAT_READ;
       }
 
       if (buffer.isFlagsOnly()) {
+        // TraceUtil.endSection();
         return C.RESULT_NOTHING_READ;
       }
 
@@ -899,6 +912,7 @@ public final class DefaultTrackOutput implements TrackOutput {
 
       extrasHolder.nextOffset = queueSize > 0 ? offsets[relativeReadIndex]
           : extrasHolder.offset + extrasHolder.size;
+      // TraceUtil.endSection();
       return C.RESULT_BUFFER_READ;
     }
 
@@ -1005,7 +1019,7 @@ public final class DefaultTrackOutput implements TrackOutput {
       // Increment the write index.
       queueSize++;
       frameCount  = frameCount + 1;
-      Log.d(TAG, "commitSample[format=" + upstreamFormat.sampleMimeType + ", timeUs="+timeUs+", relativeWriteIndex="+relativeWriteIndex+ ", sampleFlags="+sampleFlags+", offset="+offset+", size="+size+", queueSize="+ queueSize + ", frameCount=" + frameCount + "]");
+      Log.d(TAG, "commitSample[format=" + upstreamFormat.sampleMimeType + ", timeUs="+timeUs+", relWrIndex="+relativeWriteIndex+ ", offset="+offset+", size="+size+", queueSize="+ queueSize + ", frameCount=" + frameCount + ", sampleFlags="+sampleFlags+"]");
       if (queueSize == capacity) {
         // Increase the capacity.
         int newCapacity = capacity + SAMPLE_CAPACITY_INCREMENT;

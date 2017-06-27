@@ -424,7 +424,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
 
     if (!renderedFirstFrame) {
       if (Util.SDK_INT >= 21) {
-        renderOutputBufferV21(codec, bufferIndex, System.nanoTime());
+        renderOutputBufferV21(codec, bufferIndex, System.nanoTime(), bufferPresentationTimeUs);
       } else {
         renderOutputBuffer(codec, bufferIndex);
       }
@@ -457,7 +457,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     if (Util.SDK_INT >= 21) {
       // Let the underlying framework time the release.
       if (earlyUs < 50000) {
-        renderOutputBufferV21(codec, bufferIndex, adjustedReleaseTimeNs);
+        renderOutputBufferV21(codec, bufferIndex, adjustedReleaseTimeNs, bufferPresentationTimeUs);
         return true;
       }
     } else {
@@ -496,16 +496,19 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   }
 
   protected void skipOutputBuffer(MediaCodec codec, int bufferIndex) {
-    TraceUtil.beginSection("MediaCodecVideoRenderer.skipVideoBuffer");
+//    TraceUtil.beginSection("MediaCodecVideoRenderer.skipVideoBuffer");
+//    Log.d(TAG, "Skip video output buffer @" + bufferIndex);
     codec.releaseOutputBuffer(bufferIndex, false);
-    TraceUtil.endSection();
+//    Log.d(TAG, "Video output buffer @" + bufferIndex + " skipped.");
+//    TraceUtil.endSection();
     decoderCounters.skippedOutputBufferCount++;
   }
 
   protected void dropOutputBuffer(MediaCodec codec, int bufferIndex) {
-    TraceUtil.beginSection("MediaCodecVideoRenderer.dropVideoBuffer");
+//    TraceUtil.beginSection("MediaCodecVideoRenderer.dropVideoBuffer");
+//    Log.d(TAG, "drop video output buffer @" + bufferIndex);
     codec.releaseOutputBuffer(bufferIndex, false);
-    TraceUtil.endSection();
+//    TraceUtil.endSection();
     decoderCounters.droppedOutputBufferCount++;
     droppedFrames++;
     consecutiveDroppedFrameCount++;
@@ -514,26 +517,30 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     if (droppedFrames == maxDroppedFramesToNotify) {
       maybeNotifyDroppedFrames();
     }
+    Log.d(TAG, "Video output buffer @" + bufferIndex + " dropped.");
   }
 
   protected void renderOutputBuffer(MediaCodec codec, int bufferIndex) {
     maybeNotifyVideoSizeChanged();
-    TraceUtil.beginSection("MediaCodecVideoRenderer.releaseOutputBuffer");
+//    TraceUtil.beginSection("MediaCodecVideoRenderer.releaseOutputBuffer");
     codec.releaseOutputBuffer(bufferIndex, true);
-    TraceUtil.endSection();
+    Log.d(TAG, "Video output buffer @" + bufferIndex + " rendered.");
+//    TraceUtil.endSection();
     decoderCounters.renderedOutputBufferCount++;
     consecutiveDroppedFrameCount = 0;
     maybeNotifyRenderedFirstFrame();
   }
 
   @TargetApi(21)
-  protected void renderOutputBufferV21(MediaCodec codec, int bufferIndex, long releaseTimeNs) {
+  protected void renderOutputBufferV21(MediaCodec codec, int bufferIndex, long releaseTimeNs, long bufferPresentationTimeUs) {
     maybeNotifyVideoSizeChanged();
-    String logMessage = "Release video output buffer with bufferIndex @" + bufferIndex + "[rendered=" + (decoderCounters.renderedOutputBufferCount + 1) + "]";
+    String logMessage = "Video output buffer @" + bufferIndex + " start renderer[bufPresentationTimeus=" + (bufferPresentationTimeUs - 60000000) + "]";
     Log.d(TAG, logMessage);
-    TraceUtil.beginSection(logMessage);
+//    TraceUtil.beginSection(logMessage);
     codec.releaseOutputBuffer(bufferIndex, releaseTimeNs);
-    TraceUtil.endSection();
+//    TraceUtil.endSection();
+    logMessage = "Released video output buffer with rendered bufferIndex @" + bufferIndex + "[bufPresentationTimeus=" + (bufferPresentationTimeUs - 60000000) + ", rendered=" + (decoderCounters.renderedOutputBufferCount + 1) + "]";
+    Log.d(TAG, logMessage);
     decoderCounters.renderedOutputBufferCount++;
     consecutiveDroppedFrameCount = 0;
     maybeNotifyRenderedFirstFrame();
