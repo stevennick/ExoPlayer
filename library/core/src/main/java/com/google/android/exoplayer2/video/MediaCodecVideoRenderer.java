@@ -517,14 +517,14 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     if (droppedFrames == maxDroppedFramesToNotify) {
       maybeNotifyDroppedFrames();
     }
-    Log.d(TAG, "Video output buffer @" + bufferIndex + " dropped.");
+//    Log.d(TAG, "Video output buffer @" + bufferIndex + " dropped.");
   }
 
   protected void renderOutputBuffer(MediaCodec codec, int bufferIndex) {
     maybeNotifyVideoSizeChanged();
 //    TraceUtil.beginSection("MediaCodecVideoRenderer.releaseOutputBuffer");
     codec.releaseOutputBuffer(bufferIndex, true);
-    Log.d(TAG, "Video output buffer @" + bufferIndex + " rendered.");
+//    Log.d(TAG, "Video output buffer @" + bufferIndex + " rendered.");
 //    TraceUtil.endSection();
     decoderCounters.renderedOutputBufferCount++;
     consecutiveDroppedFrameCount = 0;
@@ -534,13 +534,13 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   @TargetApi(21)
   protected void renderOutputBufferV21(MediaCodec codec, int bufferIndex, long releaseTimeNs, long bufferPresentationTimeUs) {
     maybeNotifyVideoSizeChanged();
-    String logMessage = "Video output buffer @" + bufferIndex + " start renderer[bufPresentationTimeus=" + (bufferPresentationTimeUs - 60000000) + "]";
-    Log.d(TAG, logMessage);
+//    String logMessage = "Video output buffer @" + bufferIndex + " start renderer[bufPresentationTimeus=" + (bufferPresentationTimeUs - 60000000) + "]";
+//    Log.d(TAG, logMessage);
 //    TraceUtil.beginSection(logMessage);
     codec.releaseOutputBuffer(bufferIndex, releaseTimeNs);
 //    TraceUtil.endSection();
-    logMessage = "Released video output buffer with rendered bufferIndex @" + bufferIndex + "[bufPresentationTimeus=" + (bufferPresentationTimeUs - 60000000) + ", rendered=" + (decoderCounters.renderedOutputBufferCount + 1) + "]";
-    Log.d(TAG, logMessage);
+//    logMessage = "Released video output buffer with rendered bufferIndex @" + bufferIndex + "[bufPresentationTimeus=" + (bufferPresentationTimeUs - 60000000) + ", rendered=" + (decoderCounters.renderedOutputBufferCount + 1) + "]";
+//    Log.d(TAG, logMessage);
     decoderCounters.renderedOutputBufferCount++;
     consecutiveDroppedFrameCount = 0;
     maybeNotifyRenderedFirstFrame();

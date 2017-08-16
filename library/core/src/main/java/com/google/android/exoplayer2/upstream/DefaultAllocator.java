@@ -104,10 +104,10 @@ public final class DefaultAllocator implements Allocator {
     if (availableCount > 0) {
       allocation = availableAllocations[--availableCount];
       availableAllocations[availableCount] = null;
-      Log.d(TAG, "Reuse previous allocation #"+ allocation.id);
+//      Log.d(TAG, "Reuse previous allocation #"+ allocation.id);
     } else {
       allocation = new Allocation(new byte[individualAllocationSize], 0, allocationId++);
-      Log.d(TAG, "Create new allocation #"+ allocation.id);
+//      Log.d(TAG, "Create new allocation #"+ allocation.id);
     }
     return allocation;
   }
@@ -129,7 +129,7 @@ public final class DefaultAllocator implements Allocator {
       Assertions.checkArgument(allocation.data == initialAllocationBlock
           || allocation.data.length == individualAllocationSize);
       availableAllocations[availableCount++] = allocation;
-      Log.d(TAG, "Save used allocation as free space #"+ allocation.id);
+//      Log.d(TAG, "Save used allocation as free space #"+ allocation.id);
     }
     allocatedCount -= allocations.length;
     // Wake up threads waiting for the allocated size to drop.

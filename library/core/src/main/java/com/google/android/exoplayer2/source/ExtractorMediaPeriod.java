@@ -98,8 +98,8 @@ import java.io.IOException;
   private boolean released;
   private final String TAG = "ExtractorMediaPeriod";
   private final boolean makeSureConstantLatency = false;
-  private final int framesize = 10;
-  private final int fps = 25;
+  private final int frameSize = 10;
+  private final long defaultFrameRate = 25;
 
   /**
    * @param uri The {@link Uri} of the media stream.
@@ -290,6 +290,22 @@ import java.io.IOException;
     return frameSize;
   }
 
+  /**
+   * Get current buffered video frame rate.
+   */
+  public float getBufferedVideoFrameRate() {
+    float frameRate = 0;
+    if(!prepared) { return Format.NO_VALUE; }
+    int trackCount = sampleQueues.size();
+    for (int i = 0; i < trackCount; i++) {
+      if (trackIsVideoFlags[i] && trackEnabledStates[i]) {
+        frameRate = sampleQueues.valueAt(i).getUpstreamFormat().frameRate;
+        break;
+      }
+    }
+    return frameRate;
+  }
+
   @Override
   public long getBufferedPositionUs() {
     if (loadingFinished) {
@@ -367,9 +383,11 @@ import java.io.IOException;
   /* package */ void skipData(int track, long positionUs) {
     DefaultTrackOutput sampleQueue = sampleQueues.valueAt(track);
     if (loadingFinished && positionUs > sampleQueue.getLargestQueuedTimestampUs()) {
-      sampleQueue.skipAll();
+        sampleQueue.skipAll();
+        Log.d(TAG, "skipData[positionUs=" + positionUs + ", result=(SkipAll)]");
     } else {
-      sampleQueue.skipToKeyframeBefore(positionUs, true);
+      boolean result = sampleQueue.skipToKeyframeBefore(positionUs, false);
+      Log.d(TAG, "skipData[positionUs=" + positionUs + ", result=" + result + "]");
     }
   }
 
@@ -649,19 +667,22 @@ import java.io.IOException;
     /**
      *
      * @param frameSize
-     * @param fps
      */
-    private void limitLatency(int frameSize, int fps) {
-      long largestQueuedTimestampUs = getBufferedPositionUs();
+    private void limitLatency(int frameSize) {
+
       int currentQueuedFrameSize = getBufferedVideoFrameSize();
       if (currentQueuedFrameSize > frameSize) {
         // Skip frames to under frame size defined in frameSize.
+        long largestQueuedTimestampUs = getBufferedPositionUs();
+        long videoFrameRate = (long)getBufferedVideoFrameRate();
+        videoFrameRate = Long.compare(videoFrameRate, -1) == 0 ? defaultFrameRate : videoFrameRate;
+        long nextPositionUs = largestQueuedTimestampUs - (1000000 / (videoFrameRate) * (frameSize + 1));
+//        String logMessage= "extractor.load[SKIP, queuedFrameSize=" + currentQueuedFrameSize +", largestQueuedTimestampUs=" + largestQueuedTimestampUs + ", nextPositionUs=" +nextPositionUs+ "]";
+//        Log.d(TAG, logMessage);
         int track = sampleQueues.size();
         for(int index = 0; index < track; index++) {
-          long nextPositionUs = largestQueuedTimestampUs - (10000 / fps * frameSize);
-          String logMessage= "extractor.load[SKIP, queuedFrameSize=" + currentQueuedFrameSize +", largestQueuedTimestampUs=" + largestQueuedTimestampUs + ", nextPositionUs=" +nextPositionUs+ "]";
-          Log.d(TAG, logMessage);
-          if(trackIsAudioVideoFlags[index] && trackEnabledStates[index]) {
+          // Note: Maybe keep trackIsAudioVideoFlags[index] consideration.
+          if(trackEnabledStates[index]) {
             skipData(index, nextPositionUs);
           }
         }
@@ -690,21 +711,21 @@ import java.io.IOException;
           if (length != C.LENGTH_UNSET) {
             length += position;
           }
-          logMessage= "new DefaultExtractorInput & SelectExtractor[initPos=" + position +", length=" + length + "](-1 mean UNKNOWN_LENGTH)";
-          Log.d(TAG, logMessage);
-          TraceUtil.beginSection(logMessage);
+//          logMessage= "new DefaultExtractorInput & SelectExtractor[initPos=" + position +", length=" + length + "](-1 mean UNKNOWN_LENGTH)";
+//          Log.d(TAG, logMessage);
+//          TraceUtil.beginSection(logMessage);
           input = new DefaultExtractorInput(dataSource, position, length);
           Extractor extractor = extractorHolder.selectExtractor(input, dataSource.getUri());
-          TraceUtil.endSection();
+//          TraceUtil.endSection();
           if (pendingExtractorSeek) {
-            logMessage= "ExtractorSeek[initPos=" + position +", seekTimeUs=" + seekTimeUs + "]";
-            Log.d(TAG, logMessage);
+//            logMessage= "ExtractorSeek[initPos=" + position +", seekTimeUs=" + seekTimeUs + "]";
+//            Log.d(TAG, logMessage);
             extractor.seek(position, seekTimeUs);
             pendingExtractorSeek = false;
           }
-          logMessage= "extractor.read[START, inputPos=" + input.getPosition() +", initPos=" + position + "]";
-          Log.d(TAG, logMessage);
-          TraceUtil.beginSection(logMessage);
+//          logMessage= "extractor.read[START, inputPos=" + input.getPosition() +", initPos=" + position + "]";
+//          Log.d(TAG, logMessage);
+//          TraceUtil.beginSection(logMessage);
           while (result == Extractor.RESULT_CONTINUE && !loadCanceled) {
             loadCondition.block();
             result = extractor.read(input, positionHolder);
@@ -714,12 +735,12 @@ import java.io.IOException;
               handler.post(onContinueLoadingRequestedRunnable);
             }
             if (makeSureConstantLatency) {
-              this.limitLatency(framesize, fps);
+              this.limitLatency(frameSize);
             }
           }
-          TraceUtil.endSection();
-          logMessage= "extractor.read[PAUSE, inputPos=" + input.getPosition() +", initPos=" + position + "]";
-          Log.d(TAG, logMessage);
+//          TraceUtil.endSection();
+//          logMessage= "extractor.read[PAUSE, inputPos=" + input.getPosition() +", initPos=" + position + "]";
+//          Log.d(TAG, logMessage);
         } finally {
           if (result == Extractor.RESULT_SEEK) {
             result = Extractor.RESULT_CONTINUE;

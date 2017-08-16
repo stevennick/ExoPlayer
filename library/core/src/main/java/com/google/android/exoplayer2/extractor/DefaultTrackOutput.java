@@ -490,7 +490,7 @@ public final class DefaultTrackOutput implements TrackOutput {
     int allocationIndex = relativePosition / allocationLength;
     for (int i = 0; i < allocationIndex; i++) {
       Allocation remove = dataQueue.remove();
-      Log.d(TAG, "Remove allocation #"+ remove.id + " from dataQueue[relativePosition=" + relativePosition + ", allocationIndex=" + allocationIndex +"]");
+//      Log.d(TAG, "Remove allocation #"+ remove.id + " from dataQueue[relativePosition=" + relativePosition + ", allocationIndex=" + allocationIndex +"]");
       allocator.release(remove);
       totalBytesDropped += allocationLength;
     }
@@ -649,8 +649,8 @@ public final class DefaultTrackOutput implements TrackOutput {
     if (lastAllocationOffset == allocationLength) {
       lastAllocationOffset = 0;
       lastAllocation = allocator.allocate();
-      String logMessage = "prepareForAppend(dataQueue enque for #" + lastAllocation.id + "): " + String.valueOf(Arrays.hashCode(lastAllocation.data));
-      Log.d(TAG, logMessage);
+//      String logMessage = "prepareForAppend(dataQueue enque for #" + lastAllocation.id + "): " + String.valueOf(Arrays.hashCode(lastAllocation.data));
+//      Log.d(TAG, logMessage);
       dataQueue.add(lastAllocation);
     }
     return Math.min(length, allocationLength - lastAllocationOffset);
@@ -899,8 +899,8 @@ public final class DefaultTrackOutput implements TrackOutput {
       extrasHolder.size = sizes[relativeReadIndex];
       extrasHolder.offset = offsets[relativeReadIndex];
       extrasHolder.encryptionKeyId = encryptionKeys[relativeReadIndex];
-      String logMessage = "BufferExtractsHolder[format=" + formats[relativeReadIndex].sampleMimeType + ", size=" +extrasHolder.size+ ", offset="+extrasHolder.offset+"], relaIndex= " +relativeReadIndex+ ", timeUs=" + buffer.timeUs +", largeDeqTimestampUs=" + largestDequeuedTimestampUs;
-      Log.d(TAG, logMessage);
+//      String logMessage = "BufferExtractsHolder[format=" + formats[relativeReadIndex].sampleMimeType + ", size=" +extrasHolder.size+ ", offset="+extrasHolder.offset+"], relaIndex= " +relativeReadIndex+ ", timeUs=" + buffer.timeUs +", largeDeqTimestampUs=" + largestDequeuedTimestampUs;
+//      Log.d(TAG, logMessage);
       largestDequeuedTimestampUs = Math.max(largestDequeuedTimestampUs, buffer.timeUs);
       queueSize--;
       relativeReadIndex++;
@@ -1019,7 +1019,7 @@ public final class DefaultTrackOutput implements TrackOutput {
       // Increment the write index.
       queueSize++;
       frameCount  = frameCount + 1;
-      Log.d(TAG, "commitSample[format=" + upstreamFormat.sampleMimeType + ", timeUs="+timeUs+", relWrIndex="+relativeWriteIndex+ ", offset="+offset+", size="+size+", queueSize="+ queueSize + ", frameCount=" + frameCount + ", sampleFlags="+sampleFlags+"]");
+//      Log.d(TAG, "commitSample[format=" + upstreamFormat.sampleMimeType + ", timeUs="+timeUs+", relWrIndex="+relativeWriteIndex+ ", offset="+offset+", size="+size+", queueSize="+ queueSize + ", frameCount=" + frameCount + ", sampleFlags="+sampleFlags+"]");
       if (queueSize == capacity) {
         // Increase the capacity.
         int newCapacity = capacity + SAMPLE_CAPACITY_INCREMENT;

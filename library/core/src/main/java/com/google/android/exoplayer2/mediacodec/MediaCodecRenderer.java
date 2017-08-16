@@ -39,6 +39,7 @@ import com.google.android.exoplayer2.source.MediaPeriod;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.NalUnitUtil;
 //import com.google.android.exoplayer2.util.TraceUtil;
+import com.google.android.exoplayer2.util.TraceUtil;
 import com.google.android.exoplayer2.util.Util;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -511,9 +512,13 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     // We have a format.
     maybeInitCodec();
     if (codec != null) {
-      // TraceUtil.beginSection("drainAndFeed - loop " + loopCount + ", rendered:" + decoderCounters.renderedOutputBufferCount + ", skip:"+ decoderCounters.skippedOutputBufferCount + ", drop:" + decoderCounters.droppedOutputBufferCount);
+       TraceUtil.beginSection("drainAndFeed - loop " + loopCount + ", rendered:" + decoderCounters.renderedOutputBufferCount + ", skip:"+ decoderCounters.skippedOutputBufferCount + ", drop:" + decoderCounters.droppedOutputBufferCount);
+//      TraceUtil.beginSection("drain");
       while (drainOutputBuffer(positionUs, elapsedRealtimeUs)) {}
+//      TraceUtil.endSection();
+//      TraceUtil.beginSection("Feed");
       while (feedInputBuffer()) {}
+//      TraceUtil.endSection();
       // TraceUtil.endSection();
       loopCount++;
     } else {
@@ -687,7 +692,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       // TraceUtil.endSection();
       return true;
     }
-    Log.d(TAG, type + " ByteBuffer bufferIndex @" + inputIndex + " trying queue.");
+//    Log.d(TAG, type + " ByteBuffer bufferIndex @" + inputIndex + " trying queue.");
     int previousIndex = inputIndex;
     // We've read a buffer.
     if (buffer.isEndOfStream()) {
@@ -721,7 +726,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         throw ExoPlaybackException.createForRenderer(e, getIndex());
       }
       // TraceUtil.endSection();
-      Log.d(TAG, type + " ByteBuffer bufferIndex @" + previousIndex + " queued.[EOF, timeUs=" + (buffer.timeUs - RENDERER_TIMESTAMP_OFFSET_US) +"]");
+//      Log.d(TAG, type + " ByteBuffer bufferIndex @" + previousIndex + " queued.[EOF, timeUs=" + (buffer.timeUs - RENDERER_TIMESTAMP_OFFSET_US) +"]");
       return false;
     }
     if (waitingForFirstSyncFrame && !buffer.isKeyFrame()) {
@@ -781,7 +786,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       // TraceUtil.endSection();
       throw ExoPlaybackException.createForRenderer(e, getIndex());
     }
-    Log.d(TAG, type + " ByteBuffer bufferIndex @" + previousIndex + " queued.[timeUs=" + (buffer.timeUs - RENDERER_TIMESTAMP_OFFSET_US) +"]");
+//    Log.d(TAG, type + " ByteBuffer bufferIndex @" + previousIndex + " queued.[timeUs=" + (buffer.timeUs - RENDERER_TIMESTAMP_OFFSET_US) +"]");
     // TraceUtil.endSection();
     return true;
   }
@@ -959,8 +964,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
   @SuppressWarnings("deprecation")
   private boolean drainOutputBuffer(long positionUs, long elapsedRealtimeUs)
       throws ExoPlaybackException {
-    String logMessage = "Deque outputBuffer for " + codec.getInputFormat().getString("mime") + ".";
-    Log.d(TAG, logMessage);
+//    String logMessage = "Deque outputBuffer for " + codec.getInputFormat().getString("mime") + ".";
+//    String logMessage = "Deque outputBuffer";
+//    Log.d(TAG, logMessage);
     if (outputIndex < 0) {
       if (codecNeedsEosOutputExceptionWorkaround && codecReceivedEos) {
         try {
@@ -979,8 +985,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
             getDequeueOutputBufferTimeoutUs());
       }
       if (outputIndex >= 0) {
-        logMessage = "Release outputBuffer for " + codec.getInputFormat().getString("mime") + ".";
-        Log.d(TAG, logMessage);
+//        logMessage = "Release outputBuffer for " + codec.getInputFormat().getString("mime") + ".";
+//        logMessage = "Release outputBuffer";
+//        Log.d(TAG, logMessage);
         // We've dequeued a buffer.
         if (shouldSkipAdaptationWorkaroundOutputBuffer) {
           shouldSkipAdaptationWorkaroundOutputBuffer = false;
