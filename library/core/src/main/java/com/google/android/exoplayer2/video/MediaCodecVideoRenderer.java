@@ -618,7 +618,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     if (droppedFrames == maxDroppedFramesToNotify) {
       maybeNotifyDroppedFrames();
     }
-    Log.d(TAG, "Video output buffer @" + bufferIndex + " dropped.");
+//    Log.d(TAG, "Video output buffer @" + bufferIndex + " dropped.");
   }
 
   /**
@@ -653,7 +653,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   protected void renderOutputBufferV21(MediaCodec codec, int index, long presentationTimeUs,
       long releaseTimeNs) {
     maybeNotifyVideoSizeChanged();
-    String logMessage = "Video output buffer @" + bufferIndex + " start renderer[bufPresentationTimeus=" + (bufferPresentationTimeUs - 60000000) + "]";
+    String logMessage = "Video output buffer @" + bufferIndex + " start renderer[bufPresentationTimeus=" + (presentationTimeUs - 60000000) + "]";
     Log.d(TAG, logMessage);
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, releaseTimeNs);
