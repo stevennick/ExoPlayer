@@ -30,6 +30,15 @@ import java.net.SocketException;
  */
 public final class UdpDataSource implements DataSource {
 
+  public interface EventListener {
+
+    void onReceivedPacket();
+
+    void onOpen();
+
+    void onError(Exception e);
+  }
+
   /**
    * Thrown when an error is encountered when trying to read from a {@link UdpDataSource}.
    */
@@ -62,6 +71,7 @@ public final class UdpDataSource implements DataSource {
   private InetAddress address;
   private InetSocketAddress socketAddress;
   private boolean opened;
+  private final EventListener eventListener;
 
   private int packetRemaining;
 
@@ -69,15 +79,19 @@ public final class UdpDataSource implements DataSource {
    * @param listener An optional listener.
    */
   public UdpDataSource(TransferListener<? super UdpDataSource> listener) {
-    this(listener, DEFAULT_MAX_PACKET_SIZE);
+    this(listener, DEFAULT_MAX_PACKET_SIZE, null);
+  }
+
+  public UdpDataSource(TransferListener<? super UdpDataSource> listener, EventListener eventListener) {
+    this(listener, DEFAULT_MAX_PACKET_SIZE, eventListener);
   }
 
   /**
    * @param listener An optional listener.
    * @param maxPacketSize The maximum datagram packet size, in bytes.
    */
-  public UdpDataSource(TransferListener<? super UdpDataSource> listener, int maxPacketSize) {
-    this(listener, maxPacketSize, DEAFULT_SOCKET_TIMEOUT_MILLIS);
+  public UdpDataSource(TransferListener<? super UdpDataSource> listener, int maxPacketSize, EventListener eventListener) {
+    this(listener, maxPacketSize, DEAFULT_SOCKET_TIMEOUT_MILLIS, eventListener);
   }
 
   /**
@@ -87,15 +101,17 @@ public final class UdpDataSource implements DataSource {
    *     as an infinite timeout.
    */
   public UdpDataSource(TransferListener<? super UdpDataSource> listener, int maxPacketSize,
-      int socketTimeoutMillis) {
+      int socketTimeoutMillis, EventListener eventListener) {
     this.listener = listener;
     this.socketTimeoutMillis = socketTimeoutMillis;
+    this.eventListener = eventListener;
     packetBuffer = new byte[maxPacketSize];
     packet = new DatagramPacket(packetBuffer, 0, maxPacketSize);
   }
 
   @Override
   public long open(DataSpec dataSpec) throws UdpDataSourceException {
+    eventListener.onOpen();
     uri = dataSpec.uri;
     String host = uri.getHost();
     int port = uri.getPort();

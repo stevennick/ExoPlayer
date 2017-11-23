@@ -30,6 +30,7 @@ import com.google.android.exoplayer2.upstream.cache.CacheDataSourceFactory;
 import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 import com.google.android.exoplayer2.util.Util;
 
+
 /**
  * Placeholder application to facilitate overriding Application methods for debugging and testing.
  */
@@ -48,11 +49,15 @@ public class DemoApplication extends Application {
   }
 
   public DataSource.Factory buildDataSourceFactory(Uri uri, DefaultBandwidthMeter bandwidthMeter) {
+    return this.buildDataSourceFactory(uri, bandwidthMeter, null);
+  }
+
+  public DataSource.Factory buildDataSourceFactory(Uri uri, DefaultBandwidthMeter bandwidthMeter, UdpDataSource.EventListener eventListener) {
     DataSource.Factory dataSourceFactory;
     switch(uri.getScheme()) {
       case "udp":
         dataSourceFactory = new DefaultDataSourceFactory(this, bandwidthMeter,
-                buildUdpDataSourceFactory(bandwidthMeter));
+                buildUdpDataSourceFactory(bandwidthMeter, eventListener));
         break;
       case "http":
       default:
@@ -68,7 +73,11 @@ public class DemoApplication extends Application {
   }
 
   public UdpDataSource.Factory buildUdpDataSourceFactory(DefaultBandwidthMeter bandwidthMeter) {
-    return new DefaultDataSourceFactory(this, bandwidthMeter, new UdpDataSourceFactory(bandwidthMeter));
+    return this.buildUdpDataSourceFactory(bandwidthMeter, null);
+  }
+
+  public UdpDataSource.Factory buildUdpDataSourceFactory(DefaultBandwidthMeter bandwidthMeter, UdpDataSource.EventListener eventListener) {
+    return new DefaultDataSourceFactory(this, bandwidthMeter, new UdpDataSourceFactory(bandwidthMeter, eventListener));
   }
 
   public boolean useExtensionRenderers() {
@@ -81,14 +90,16 @@ public class DemoApplication extends Application {
   public class UdpDataSourceFactory implements DataSource.Factory {
 
     private DefaultBandwidthMeter bandwidthMeter;
+    private UdpDataSource.EventListener eventListener;
 
-    public UdpDataSourceFactory(DefaultBandwidthMeter bandwidthMeter) {
+    public UdpDataSourceFactory(DefaultBandwidthMeter bandwidthMeter, UdpDataSource.EventListener eventListener) {
       this.bandwidthMeter = bandwidthMeter;
+      this.eventListener = eventListener;
     }
 
     @Override
     public DataSource createDataSource() {
-      return new UdpDataSource(bandwidthMeter);
+      return new UdpDataSource(bandwidthMeter, eventListener);
     }
   }
 

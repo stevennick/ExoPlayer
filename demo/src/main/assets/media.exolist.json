@@ -9,6 +9,23 @@
     ]
   },
   {
+    "name": "Local 4K Test",
+    "samples": [
+      {
+        "name": "Local Faye(Framed, 216 Mbps VBR TS GOP=25, 'Faye_framed_seci.ts')",
+        "uri": "file:///storage/emulated/0/Movies/Faye_framed_seci.ts"
+      },
+      {
+        "name": "Local Faye(Framed, 16.9 Mbps VBR TS, 'Faye_framed_gop_no_change.ts')",
+        "uri": "file:///storage/emulated/0/Movies/Faye_framed_gop_no_change.ts"
+      },
+      {
+        "name": "Local Faye(Original, 29.7 Mbps VBR TS, 'Faye.ts')",
+        "uri": "file:///storage/emulated/0/Movies/Faye.ts"
+      }
+    ]
+  },
+  {
     "name": "YouTube DASH",
     "samples": [
       {

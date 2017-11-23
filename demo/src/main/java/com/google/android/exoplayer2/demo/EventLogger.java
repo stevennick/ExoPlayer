@@ -47,6 +47,7 @@ import com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedT
 import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.upstream.DataSpec;
+import com.google.android.exoplayer2.upstream.UdpDataSource;
 import com.google.android.exoplayer2.video.VideoRendererEventListener;
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -58,7 +59,7 @@ import java.util.Locale;
 /* package */ final class EventLogger implements Player.EventListener, AudioRendererEventListener,
     VideoRendererEventListener, AdaptiveMediaSourceEventListener,
     ExtractorMediaSource.EventListener, DefaultDrmSessionManager.EventListener,
-    MetadataRenderer.Output {
+    MetadataRenderer.Output, UdpDataSource.EventListener {
 
   private static final String TAG = "EventLogger";
   private static final int MAX_TIMELINE_ITEM_LINES = 3;
@@ -479,5 +480,21 @@ import java.util.Locale;
       default:
         return "?";
     }
+  }
+
+  @Override
+  public void onReceivedPacket() {
+    Log.d(TAG, "UDP Packet received.");
+  }
+
+  @Override
+  public void onOpen() {
+    Log.d(TAG, "UDP datagream open.");
+  }
+
+  @Override
+  public void onError(Exception e) {
+    Log.d(TAG, "UDP Error: " + e.toString());
+    e.printStackTrace();
   }
 }

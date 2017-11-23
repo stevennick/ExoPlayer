@@ -1019,7 +1019,7 @@ public final class DefaultTrackOutput implements TrackOutput {
       // Increment the write index.
       queueSize++;
       frameCount  = frameCount + 1;
-//      Log.d(TAG, "commitSample[format=" + upstreamFormat.sampleMimeType + ", timeUs="+timeUs+", relWrIndex="+relativeWriteIndex+ ", offset="+offset+", size="+size+", queueSize="+ queueSize + ", frameCount=" + frameCount + ", sampleFlags="+sampleFlags+"]");
+      Log.d(TAG, "commitSample[format=" + upstreamFormat.sampleMimeType + ", timeUs="+timeUs+", relWrIndex="+relativeWriteIndex+ ", offset="+offset+", size="+size+", queueSize="+ queueSize + ", frameCount=" + frameCount + ", sampleFlags="+sampleFlags+"]");
       if (queueSize == capacity) {
         // Increase the capacity.
         int newCapacity = capacity + SAMPLE_CAPACITY_INCREMENT;

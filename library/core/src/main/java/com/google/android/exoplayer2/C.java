@@ -550,12 +550,12 @@ public final class C {
   /**
    * A default size in bytes for an individual allocation that forms part of a larger buffer.
    */
-  public static final int DEFAULT_BUFFER_SEGMENT_SIZE = 64 * 1024;
+  public static final int DEFAULT_BUFFER_SEGMENT_SIZE = 128 * 1024;
 
   /**
    * A default size in bytes for a video buffer.
    */
-  public static final int DEFAULT_VIDEO_BUFFER_SIZE = 200 * DEFAULT_BUFFER_SEGMENT_SIZE;
+  public static final int DEFAULT_VIDEO_BUFFER_SIZE = 2000 * DEFAULT_BUFFER_SEGMENT_SIZE;
 
   /**
    * A default size in bytes for an audio buffer.

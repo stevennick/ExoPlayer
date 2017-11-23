@@ -555,16 +555,18 @@ import java.io.IOException;
   }
 
   private void doSomeWork() throws ExoPlaybackException, IOException {
+    TraceUtil.beginSection("ExoPlayerImplInternal.doSomeWork");
     long operationStartTimeMs = SystemClock.elapsedRealtime();
+//    Log.d(TAG, "doSomeWork[Start, opStartTime=" + operationStartTimeMs + "]");
     updatePeriods();
     if (playingPeriodHolder == null) {
       // We're still waiting for the first period to be prepared.
       maybeThrowPeriodPrepareError();
+//      Log.d(TAG, "scheduleNextWork[PeriodHolder=null, opStartTime=" + operationStartTimeMs + "]");
       scheduleNextWork(operationStartTimeMs, PREPARING_SOURCE_INTERVAL_MS);
+      TraceUtil.endSection();
       return;
     }
-
-    TraceUtil.beginSection("ExoPlayerImplInternal.doSomeWork");
 
     updatePlaybackPositions();
     playingPeriodHolder.mediaPeriod.discardBuffer(playbackInfo.positionUs);
@@ -644,14 +646,17 @@ import java.io.IOException;
     } else {
       handler.removeMessages(MSG_DO_SOME_WORK);
     }
-
+//    Log.d(TAG, "doSomeWork[FIN, opStartTime=" + operationStartTimeMs + "]");
     TraceUtil.endSection();
   }
 
   private void scheduleNextWork(long thisOperationStartTimeMs, long intervalMs) {
+    long currentSystemTimeMs = SystemClock.elapsedRealtime();
     handler.removeMessages(MSG_DO_SOME_WORK);
     long nextOperationStartTimeMs = thisOperationStartTimeMs + intervalMs;
-    long nextOperationDelayMs = nextOperationStartTimeMs - SystemClock.elapsedRealtime();
+//    long nextOperationDelayMs = nextOperationStartTimeMs - SystemClock.elapsedRealtime();
+    long nextOperationDelayMs = nextOperationStartTimeMs - currentSystemTimeMs;
+//    Log.d(TAG, "scheduleNextWork[operationSTMs=" + thisOperationStartTimeMs + ", currSTMs=" + currentSystemTimeMs + ", nextSTMs=" + nextOperationDelayMs + "]");
     if (nextOperationDelayMs <= 0) {
       handler.sendEmptyMessage(MSG_DO_SOME_WORK);
     } else {

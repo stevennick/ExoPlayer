@@ -478,7 +478,7 @@ public class PlayerActivity extends Activity implements OnClickListener, EventLi
    */
   private DataSource.Factory buildDataSourceFactory(Uri uri, boolean useBandwidthMeter) {
     return ((DemoApplication) getApplication())
-        .buildDataSourceFactory(uri, useBandwidthMeter ? BANDWIDTH_METER : null);
+        .buildDataSourceFactory(uri, useBandwidthMeter ? BANDWIDTH_METER : null, eventLogger);
   }
 
   /**

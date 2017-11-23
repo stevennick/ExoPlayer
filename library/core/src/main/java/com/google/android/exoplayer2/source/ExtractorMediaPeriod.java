@@ -115,9 +115,9 @@ import java.util.Arrays;
   private boolean loadingFinished;
   private boolean released;
   private final String TAG = "ExtractorMediaPeriod";
-  private final boolean makeSureConstantLatency = false;
-  private final int frameSize = 10;
-  private final long defaultFrameRate = 25;
+  private final boolean makeSureConstantLatency = true;
+  private final int frameSize = 8;
+  private final long defaultFrameRate = 30;
 
   /**
    * @param uri The {@link Uri} of the media stream.
@@ -732,8 +732,8 @@ import java.util.Arrays;
         long videoFrameRate = (long)getBufferedVideoFrameRate();
         videoFrameRate = Long.compare(videoFrameRate, -1) == 0 ? defaultFrameRate : videoFrameRate;
         long nextPositionUs = largestQueuedTimestampUs - (1000000 / (videoFrameRate) * (frameSize + 1));
-//        String logMessage= "extractor.load[SKIP, queuedFrameSize=" + currentQueuedFrameSize +", largestQueuedTimestampUs=" + largestQueuedTimestampUs + ", nextPositionUs=" +nextPositionUs+ "]";
-//        Log.d(TAG, logMessage);
+        String logMessage= "extractor.load[queuedFrameSize=" + currentQueuedFrameSize +", largestQueuedTimestampUs=" + largestQueuedTimestampUs + ", nextPositionUs=" +nextPositionUs+ "]";
+        Log.d(TAG, logMessage);
         int track = sampleQueues.size();
         for(int index = 0; index < track; index++) {
           // Note: Maybe keep trackIsAudioVideoFlags[index] consideration.
